@@ -1,13 +1,46 @@
 const pool = require('../connection');
 
+function toRadians(degrees) {
+    return degrees * (Math.PI / 180);
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth radius in kilometers
+
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+              Math.sin(dLon / 2) ** 2;
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    return distance; // in kilometers
+}
+
 
 async function GetOffers (req,res) {
-    const {car_id,variant_id,city,brand} = req.body
-    let table_names;
+    const {car_id,variant_id,lat,lon,brand} = req.body
+    let dealership_details;
+    let table_names=[];
 
     try {
-        const response = await pool.query(`SELECT dealership_name FROM onboarded_dealers WHERE city=$1 AND dealership_brand=$2`,[city,brand])
-        table_names = response.rows.map(row => row.dealership_name);
+        const response = await pool.query(`SELECT * FROM onboarded_dealers WHERE  dealership_brand=$1`,[brand])
+        dealership_details = response.rows;
+        
+
+
+        for(let item of dealership_details){
+            const distance = haversine(item.lat, item.lon, parseFloat(lat), parseFloat(lon));
+            
+
+            if(distance<=25){
+                table_names.push(item.dealership_name)
+            }
+        }
+
     } catch (error) {
         return res.json({error:error.response})
         
