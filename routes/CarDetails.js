@@ -1,11 +1,13 @@
 const express = require('express');
-const router = express.Router()
-const pool = require('../connection');
-const {GetOffers} = require('../controller/CarDetails.controller')
+const router = express.Router();
+const {GetOffers, InventoryList, CarQuotation,SpecificQuotation} = require('../controller/CarDetails.controller');
 
 
-router.post('/',GetOffers)
+router.post('/',GetOffers);
+router.post('/InventoryList',InventoryList);
+router.get('/Quotations',CarQuotation);
+router.get('/SpecificQuotation',SpecificQuotation);
 
 
 
-module.exports = router
+module.exports = router;
