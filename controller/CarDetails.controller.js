@@ -77,28 +77,35 @@ async function GetOffers(req, res) {
 }
 
 async function InventoryList(req, res) {
-  const { dealer_id } = req.body;
+  // const { dealer_id } = req.body;
+
+  // try {
+  //   const response = await pool.query(
+  //     `
+  //     SELECT i.*,
+  //      m."modelName",
+  //      m."FK_ID",
+  //      m."modelImage",
+  //      v."name",
+  //      v."exShowRoomPrice"
+
+  //     FROM inventory i
+  //     JOIN "public"."ACKODTO" m ON i.car_id = m."modelId"
+  //     JOIN "public"."VARIANTS_SPLITTED" v ON i.variant_id = v."centralId"
+  //     WHERE i.dealer_id = $1
+  //   `,
+  //     [dealer_id]
+  //   );
+  //   return res.json({ msg: response.rows });
+  // } catch (error) {
+  //   return res.json({ msg: `${error}` });
+  // }
 
   try {
-    const response = await pool.query(
-      `
-      SELECT i.*,
-       m."modelName",
-       m."FK_ID",
-       m."modelImage",
-       v."name",
-       v."exShowRoomPrice"
-
-      FROM inventory i
-      JOIN "public"."ACKODTO" m ON i.car_id = m."modelId"
-      JOIN "public"."VARIANTS_SPLITTED" v ON i.variant_id = v."centralId"
-      WHERE i.dealer_id = $1
-    `,
-      [dealer_id]
-    );
-    return res.json({ msg: response.rows });
+    const response  = await pool.query(`Select * from Kia_Inventory`);
+    return res.json({msg:response.rows})
   } catch (error) {
-    return res.json({ msg: `${error}` });
+    return res.json({msg:`${error}`})
   }
 }
 

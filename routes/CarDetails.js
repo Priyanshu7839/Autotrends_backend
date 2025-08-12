@@ -4,7 +4,7 @@ const {GetOffers, InventoryList, CarQuotation,SpecificQuotation} = require('../c
 
 
 router.post('/',GetOffers);
-router.post('/InventoryList',InventoryList);
+router.get('/InventoryList',InventoryList);
 router.get('/Quotations',CarQuotation);
 router.get('/SpecificQuotation',SpecificQuotation);
 
