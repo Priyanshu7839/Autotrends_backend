@@ -1,4 +1,8 @@
-const pool = require('../connection')
+const pool = require('../connection');
+const multer = require("multer")
+const fs = require('fs')
+const XLSX = require('xlsx')
+
 
 async function CarQuotationForm (req,res) {
 const {uid,lat,lon,city,price,dealership,color,car_id,variant_id,hexCode} = req.body;
@@ -65,5 +69,75 @@ async function SpecificQuotation (req,res) {
 
 
 }
+  const upload = multer({dest:'/uploads'})
 
-module.exports = {CarQuotationForm,SubmitPan,UpdateInventory,SpecificQuotation}
+async function UploadXL(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+
+    const filepath = req.file.path;
+    const workbook = XLSX.readFile(filepath);
+    const sheetname = workbook.SheetNames[0];
+    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetname], { defval: null });
+    const orderDealerValues = [...new Set(sheetData.map(row => row["Order Dealer"]))];
+
+
+
+    if (sheetData.length === 0) {
+      fs.unlinkSync(filepath);
+      return res.json({ msg: "No Data found in Excel" });
+    }
+
+    const columns = Object.keys(sheetData[0]);
+    const columnNames = columns.map(col => `"${col}"`).join(", ");
+
+    // Prepare for batch insert
+    const allValues = [];
+    const valuePlaceholders = [];
+
+    sheetData.forEach((row, rowIndex) => {
+      const rowValues = columns.map(col => row[col]);
+      allValues.push(...rowValues);
+
+      const placeholders = rowValues.map((_, colIndex) =>
+        `$${rowIndex * columns.length + colIndex + 1}`
+      );
+      valuePlaceholders.push(`(${placeholders.join(", ")})`);
+    });
+
+    const insertQuery = `
+      INSERT INTO kia_inventory (${columnNames})
+      VALUES ${valuePlaceholders.join(", ")}
+    `;
+
+      try {
+     await pool.query(
+      `DELETE FROM kia_inventory WHERE "Order Dealer" = $1`,
+      [orderDealerValues?.[0]]
+    );
+    await pool.query(insertQuery, allValues);
+
+    const updated = await pool.query(`SELECT "updated_at" from kia_inventory WHERE "Order Dealer" = $1`,[orderDealerValues?.[0]]);
+    fs.unlinkSync(filepath);
+
+    
+
+
+    res.json({ message: "Data uploaded successfully",time:updated?.rows?.[0]?.updated_at });
+
+  } catch (error) {
+    console.error("Error deleting rows:", error);
+    res.status(500).json({ message: "Error deleting rows" });
+  }
+
+    
+
+  } catch (error) {
+    console.error("Error uploading Excel:", error);
+    res.status(500).json({ message: "Error uploading file" });
+  }
+}
+module.exports = {CarQuotationForm,SubmitPan,UpdateInventory,SpecificQuotation,UploadXL}
