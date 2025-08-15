@@ -69,7 +69,6 @@ async function SpecificQuotation (req,res) {
 
 
 }
-  const upload = multer({dest:'/uploads'})
 
 async function UploadXL(req, res) {
   try {
@@ -140,4 +139,28 @@ async function UploadXL(req, res) {
     res.status(500).json({ message: "Error uploading file" });
   }
 }
-module.exports = {CarQuotationForm,SubmitPan,UpdateInventory,SpecificQuotation,UploadXL}
+
+
+
+async function AverageSalesUpload(req,res) {
+    const {averageSales,dealer_id} = req.body;
+
+
+    try {
+       const response = await pool.query(
+  `UPDATE onboarded_dealers 
+   SET "Average Sales" = $1 
+   WHERE pk_id = $2 
+   RETURNING *`,
+  [averageSales, dealer_id]
+);
+        return res.json({"msg":"done"})
+
+    } catch (error) {
+        console.log(error)
+        return res.json({"error":`${error}`})
+    }
+
+}
+
+module.exports = {CarQuotationForm,SubmitPan,UpdateInventory,SpecificQuotation,UploadXL,AverageSalesUpload}

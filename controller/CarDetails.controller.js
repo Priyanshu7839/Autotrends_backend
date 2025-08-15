@@ -160,5 +160,18 @@ async function SpecificQuotation(req,res){
   }
 }
 
+async function AverageSalesFetch(req,res){
+    const {dealer_id} = req.body;
 
-module.exports = { GetOffers,InventoryList,CarQuotation,SpecificQuotation};
+    try {
+        const response = await pool.query(`SELECT "Average Sales" from onboarded_dealers WHERE pk_id =$1`,[dealer_id]);
+        return res.json({"msg":"Data fetched","Data":response.rows})
+    } catch (error) {
+        console.log(error);
+        return res.json({"error":`${error}`});
+    }
+}
+
+
+
+module.exports = { GetOffers,InventoryList,CarQuotation,SpecificQuotation,AverageSalesFetch};
