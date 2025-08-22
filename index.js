@@ -2,6 +2,7 @@ const express = require('express');
 const carDetailsRoute = require('./routes/CarDetails');
 const userAuthRoute = require('./routes/userAuth.routes');
 const forSubmisiionRoute = require('./routes/ForSubmisiion.routes');
+const InventoryDetails = require('./routes/InventoryDetails.routes')
 const cors = require('cors')
 
 
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use('/deals',carDetailsRoute)
 app.use('/user',userAuthRoute);
 app.use('/submit',forSubmisiionRoute)
+app.use('/Dashboard',InventoryDetails)
 
 
 
