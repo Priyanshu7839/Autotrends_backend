@@ -26,8 +26,12 @@ async function FastStars (req,res) {
     try {
         const response = await pool.query(`Select * from kia_inventory WHERE "Order Dealer" = ANY($1)`,[DealerCodes])
         const FastStars = response?.rows?.filter((model)=>model["Stock Age"] <= 15)
+          const totalCapitalStuck = response?.rows?.reduce((acc,items)=>{
+            const basicPrice = items["Basic Price"]
+            return acc+basicPrice
+        },0)
         
-        return res.json({msg:'Data Fetched',FastStarsCount:FastStars?.length,data:FastStars})
+        return res.json({msg:'Data Fetched',FastStarsCount:FastStars?.length,data:FastStars,totalCapitalStuck:totalCapitalStuck})
     } catch (error) {
         console.log(error)
         return res.json({error:error.response})
@@ -41,13 +45,20 @@ async function SlowSnails (req,res) {
     try {
         const response = await pool.query(`Select * from kia_inventory WHERE "Order Dealer" = ANY($1)`,[DealerCodes])
         const SlowSnails = response?.rows?.filter((model)=>model["Stock Age"] >= 75)
+
+        const totalCapitalStuck = response?.rows?.reduce((acc,items)=>{
+            const basicPrice = items["Basic Price"]
+            return acc+basicPrice
+        },0)
         
-        return res.json({msg:'Data Fetched',SlowSnailsCount:SlowSnails?.length,data:SlowSnails})
+        return res.json({msg:'Data Fetched',SlowSnailsCount:SlowSnails?.length,data:SlowSnails,totalCapitalStuck:totalCapitalStuck})
     } catch (error) {
         console.log(error)
         return res.json({error:error.response})
     }
 }
+
+
 
 
 
