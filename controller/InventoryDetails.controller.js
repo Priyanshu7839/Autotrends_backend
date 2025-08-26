@@ -63,4 +63,21 @@ async function SlowSnails (req,res) {
 
 
 
-module.exports = {FetchTotalInventoryUnits,FastStars,SlowSnails}
+async function GetDealerCodes(req,res){
+    const {dealership_id} = req.body;
+
+    try {
+        const response = await pool.query(`SELECT dealer_code from dealer_codes where dealership_id = $1`,[dealership_id]);
+        return res.json({msg:response.rows})
+    } catch (error) {
+          console.log(error)
+        return res.json({error:error.response})
+
+    }
+}
+
+
+
+
+
+module.exports = {FetchTotalInventoryUnits,FastStars,SlowSnails,GetDealerCodes}

@@ -77,7 +77,7 @@ async function GetOffers(req, res) {
 }
 
 async function InventoryList(req, res) {
-  // const { dealer_id } = req.body;
+  const { dealer_id } = req.body;
 
   // try {
   //   const response = await pool.query(
@@ -102,8 +102,15 @@ async function InventoryList(req, res) {
   // }
 
   try {
-    const response  = await pool.query(`Select * from Kia_Inventory`);
-    return res.json({msg:response.rows})
+
+       const uploadData = await pool.query(`SELECT upload_id,uploaded_at FROM uploads WHERE dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,[dealer_id])
+         const upload_id  = uploadData.rows?.[0]?.upload_id
+         console.log(upload_id)
+
+    const response  = await pool.query(`Select stock_data from main_inventory WHERE upload_id = $1`,[upload_id]);
+    const stock_data = response?.rows?.map((item)=>item.stock_data)
+    return res.json({msg:stock_data})
+    
   } catch (error) {
     return res.json({msg:`${error}`})
   }

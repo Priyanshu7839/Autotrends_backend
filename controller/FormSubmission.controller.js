@@ -76,63 +76,64 @@ async function UploadXL(req, res) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    const { orderDealer } = req.body; // get from POST request body
+    if (!orderDealer) {
+      return res.status(400).json({ message: "Order Dealer is required" });
+    }
 
     const filepath = req.file.path;
     const workbook = XLSX.readFile(filepath);
     const sheetname = workbook.SheetNames[0];
     const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetname], { defval: null });
-    const orderDealerValues = [...new Set(sheetData.map(row => row["Order Dealer"]))];
-
-
 
     if (sheetData.length === 0) {
       fs.unlinkSync(filepath);
       return res.json({ msg: "No Data found in Excel" });
     }
 
-    const columns = Object.keys(sheetData[0]);
-    const columnNames = columns.map(col => `"${col}"`).join(", ");
+    // Assume dealership_id is also passed in request body
+    const { dealershipId } = req.body;
+    console.log("dealershipId" , dealershipId)
+    if (!dealershipId) {
+      return res.status(400).json({ message: "Dealership ID is required" });
+    }
 
-    // Prepare for batch insert
-    const allValues = [];
-    const valuePlaceholders = [];
+    // 1. Insert into uploads table
+    const uploadResult = await pool.query(
+      `INSERT INTO uploads (dealership_id) VALUES ($1) RETURNING upload_id, uploaded_at`,
+      [dealershipId]
+    );
+    const { upload_id, uploaded_at } = uploadResult.rows[0];
 
-    sheetData.forEach((row, rowIndex) => {
-      const rowValues = columns.map(col => row[col]);
-      allValues.push(...rowValues);
+    // 2. Prepare inventory inserts (each row → JSONB)
+    const insertValues = [];
+    const placeholders = [];
 
-      const placeholders = rowValues.map((_, colIndex) =>
-        `$${rowIndex * columns.length + colIndex + 1}`
+    sheetData.forEach((row, i) => {
+      insertValues.push(upload_id, dealershipId, orderDealer, JSON.stringify(row));
+      placeholders.push(
+        `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4}::jsonb)`
       );
-      valuePlaceholders.push(`(${placeholders.join(", ")})`);
     });
 
     const insertQuery = `
-      INSERT INTO kia_inventory (${columnNames})
-      VALUES ${valuePlaceholders.join(", ")}
+      INSERT INTO main_inventory (upload_id, dealer_id, dealer_code, stock_data)
+      VALUES ${placeholders.join(", ")}
     `;
 
-      try {
-     await pool.query(
-      `DELETE FROM kia_inventory WHERE "Order Dealer" = $1`,
-      [orderDealerValues?.[0]]
-    );
-    await pool.query(insertQuery, allValues);
+    await pool.query(insertQuery, insertValues);
 
-    const updated = await pool.query(`SELECT "updated_at" from kia_inventory WHERE "Order Dealer" = $1`,[orderDealerValues?.[0]]);
+    // Delete temp file
     fs.unlinkSync(filepath);
 
-    
-
-
-    res.json({ message: "Data uploaded successfully",time:updated?.rows?.[0]?.updated_at });
-
-  } catch (error) {
-    console.error("Error deleting rows:", error);
-    res.status(500).json({ message: "Error deleting rows" });
-  }
-
-    
+    res.json({
+      message: "Data uploaded successfully",
+      upload_id,
+      uploaded_at,
+      dealership_id: dealershipId,
+      order_dealer: orderDealer,
+      rows_inserted: sheetData.length,
+    });
 
   } catch (error) {
     console.error("Error uploading Excel:", error);

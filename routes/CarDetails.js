@@ -4,7 +4,7 @@ const {GetOffers, InventoryList, CarQuotation,SpecificQuotation, AverageSalesFet
 
 
 router.post('/',GetOffers);
-router.get('/InventoryList',InventoryList);
+router.post('/InventoryList',InventoryList);
 router.get('/Quotations',CarQuotation);
 router.get('/SpecificQuotation',SpecificQuotation);
 router.post('/GetAverageSales',AverageSalesFetch);
