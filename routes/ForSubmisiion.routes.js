@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {CarQuotationForm,SubmitPan,UpdateInventory,SpecificQuotation,UploadXL, AverageSalesUpload} = require('../controller/FormSubmission.controller')
+const {CarQuotationForm,SubmitPan,UpdateInventory,SpecificQuotation,UploadXL, AverageSalesUpload, BBNDUploadXLCompare, UploadBBNDXL} = require('../controller/FormSubmission.controller')
 const multer = require('multer')
 const path = require('path')
 
@@ -21,6 +21,8 @@ router.post('/updateInventory',UpdateInventory);
 router.post('/SpecificQuotation',SpecificQuotation);
 router.post("/uploadxl", upload.single("file"), UploadXL);
 router.post("/uploadaveragesales",AverageSalesUpload);
+router.post("/uploadbbndxlcompare",upload.single("file"),BBNDUploadXLCompare);
+router.post("/uploadbbndxl",upload.single("file"),UploadBBNDXL);
 
 
 

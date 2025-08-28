@@ -76,45 +76,7 @@ async function GetOffers(req, res) {
   return res.json({ results });
 }
 
-async function InventoryList(req, res) {
-  const { dealer_id } = req.body;
 
-  // try {
-  //   const response = await pool.query(
-  //     `
-  //     SELECT i.*,
-  //      m."modelName",
-  //      m."FK_ID",
-  //      m."modelImage",
-  //      v."name",
-  //      v."exShowRoomPrice"
-
-  //     FROM inventory i
-  //     JOIN "public"."ACKODTO" m ON i.car_id = m."modelId"
-  //     JOIN "public"."VARIANTS_SPLITTED" v ON i.variant_id = v."centralId"
-  //     WHERE i.dealer_id = $1
-  //   `,
-  //     [dealer_id]
-  //   );
-  //   return res.json({ msg: response.rows });
-  // } catch (error) {
-  //   return res.json({ msg: `${error}` });
-  // }
-
-  try {
-
-       const uploadData = await pool.query(`SELECT upload_id,uploaded_at FROM uploads WHERE dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,[dealer_id])
-         const upload_id  = uploadData.rows?.[0]?.upload_id
-         console.log(upload_id)
-
-    const response  = await pool.query(`Select stock_data from main_inventory WHERE upload_id = $1`,[upload_id]);
-    const stock_data = response?.rows?.map((item)=>item.stock_data)
-    return res.json({msg:stock_data})
-    
-  } catch (error) {
-    return res.json({msg:`${error}`})
-  }
-}
 
 async function CarQuotation(req,res){
     try {
@@ -181,4 +143,4 @@ async function AverageSalesFetch(req,res){
 
 
 
-module.exports = { GetOffers,InventoryList,CarQuotation,SpecificQuotation,AverageSalesFetch};
+module.exports = { GetOffers,CarQuotation,SpecificQuotation,AverageSalesFetch};
