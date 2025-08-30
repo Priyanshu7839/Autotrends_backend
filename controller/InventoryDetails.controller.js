@@ -3,6 +3,7 @@ const pool = require("../connection");
 async function FetchTotalInventoryUnits(req, res) {
   const { dealership_id } = req.body;
 
+  console.log(dealership_id)
   try {
     const uploadResult = await pool.query(
       `Select upload_id,uploaded_at from uploads where "dealership_id" = $1 ORDER BY  uploaded_at DESC LIMIT 1 `,
@@ -126,17 +127,25 @@ async function BBNDInventoryList(req, res) {
       [dealer_id]
     );
     const bbnd_upload_id = bbnduploadData.rows?.[0]?.bbnd_upload_id;
+    const uploaded_at = bbnduploadData.rows?.[0]?.uploaded_at;
 
     const response = await pool.query(
       `Select stock_data from bbnd_inventory WHERE bbnd_upload_id = $1`,
       [bbnd_upload_id]
     );
     const stock_data = response?.rows?.map((item) => item.stock_data);
-    return res.json({ msg: stock_data });
+
+    const deleted = await pool.query(`Select stock_data,created_at from deleted_bbnd_inventory where dealer_id = $1`,[dealer_id])
+  
+
+
+    return res.json({ msg: "Data Fetched",stock:stock_data,deleted:deleted?.rows,upload_at:uploaded_at });
   } catch (error) {
     return res.json({ msg: `${error}` });
   }
 }
+
+
 
 async function GetBBNDInventoryStockUnits(req, res) {
   const { dealer_id, dealer_code } = req.body;
@@ -168,6 +177,8 @@ async function BBNDInventoryListOrderDealer(req, res) {
       [dealer_id]
     );
     const bbnd_upload_id = bbnduploadData.rows?.[0]?.bbnd_upload_id;
+    const uploaded_at = bbnduploadData.rows?.[0]?.uploaded_at;
+
 
     const response = await pool.query(
       `Select stock_data from bbnd_inventory WHERE bbnd_upload_id = $1 AND dealer_code = $2`,
@@ -175,7 +186,10 @@ async function BBNDInventoryListOrderDealer(req, res) {
     );
 
     const stock_data = response?.rows?.map((item) => item.stock_data);
-    return res.json({ msg: stock_data });
+
+     const deleted = await pool.query(`Select stock_data,created_at from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = $2`,[dealer_id,dealer_code])
+      return res.json({ msg: "Data Fetched",stock:stock_data,deleted:deleted?.rows,upload_at:uploaded_at });
+
   } catch (error) {
     return res.json({ msg: `${error}` });
   }

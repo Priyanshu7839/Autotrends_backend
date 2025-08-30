@@ -240,7 +240,6 @@ async function BBNDUploadXLCompare(req, res) {
     const newSheetInsertValues = sheetData.map((row) => row);
 
     const { dealershipId } = req.body;
-    console.log("dealershipId", dealershipId);
     if (!dealershipId) {
       return res.status(400).json({ message: "Dealership ID is required" });
     }
@@ -344,18 +343,44 @@ async function UploadBBNDXL(req, res) {
         `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4}::jsonb)`
       );
     });
-
-    const insertQuery = `
+     const insertQuery = `
       INSERT INTO bbnd_inventory (bbnd_upload_id, dealer_id, dealer_code, stock_data)
       VALUES ${placeholders.join(", ")}
     `;
 
+    const deletedData = JSON.parse(req.body.deletedData);
+   
+
+    const insertValuesDeleted = [];
+    const placeholdersDeleted = [];
+
+     deletedData.forEach((row, i) => {
+      insertValuesDeleted.push(
+        bbnd_upload_id,
+        dealershipId,
+        orderDealer,
+        JSON.stringify(row)
+      );
+      placeholdersDeleted.push(
+        `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4}::jsonb)`
+      );
+    });
+    const insertQueryDeleted = `
+      INSERT INTO deleted_bbnd_inventory (bbnd_upload_id, dealer_id, dealer_code, stock_data)
+      VALUES ${placeholdersDeleted.join(", ")}
+    `;
+
+
+
+   
+
     await pool.query(insertQuery, insertValues);
+    await pool.query(insertQueryDeleted,insertValuesDeleted)
 
     // Delete temp file
     fs.unlinkSync(filepath);
 
-    res.json({
+     return res.json({
       message: "Data uploaded successfully",
       bbnd_upload_id,
       uploaded_at,
@@ -363,6 +388,8 @@ async function UploadBBNDXL(req, res) {
       order_dealer: orderDealer,
       rows_inserted: sheetData.length,
     });
+
+   
   } catch (error) {
     console.error("Error uploading Excel:", error);
     res.status(500).json({ message: "Error uploading file" });
