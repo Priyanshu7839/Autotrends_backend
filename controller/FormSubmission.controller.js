@@ -170,8 +170,8 @@ async function UploadXL(req, res) {
 
     // 1. Insert into uploads table
     const uploadResult = await pool.query(
-      `INSERT INTO uploads (dealership_id) VALUES ($1) RETURNING upload_id, uploaded_at`,
-      [dealershipId]
+      `INSERT INTO uploads (dealership_id,dealer_code) VALUES ($1,$2) RETURNING upload_id, uploaded_at`,
+      [dealershipId,orderDealer]
     );
     const { upload_id, uploaded_at } = uploadResult.rows[0];
 
@@ -214,6 +214,7 @@ async function UploadXL(req, res) {
     res.status(500).json({ message: "Error uploading file" });
   }
 }
+
 async function BBNDUploadXLCompare(req, res) {
   try {
     if (!req.file) {
@@ -248,8 +249,8 @@ async function BBNDUploadXLCompare(req, res) {
 
     try {
       const bbnduploadResult = await pool.query(
-        `Select bbnd_upload_id,uploaded_at from bbnd_uploads where "dealership_id" = $1 ORDER BY  uploaded_at DESC LIMIT 1 `,
-        [dealershipId]
+        `Select bbnd_upload_id,uploaded_at from bbnd_uploads where "dealership_id" = $1 AND "dealer_code" = $2 ORDER BY  uploaded_at DESC LIMIT 1 `,
+        [dealershipId,orderDealer]
       );
 
       const bbnd_upload_id = bbnduploadResult?.rows[0]?.bbnd_upload_id;
@@ -290,14 +291,13 @@ async function BBNDUploadXLCompare(req, res) {
   }
 }
 
-
 async function UploadBBNDXL(req, res) {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const { orderDealer } = req.body; // get from POST request body
+    const { orderDealer } = req.body; 
     if (!orderDealer) {
       return res.status(400).json({ message: "Order Dealer is required" });
     }
@@ -323,8 +323,8 @@ async function UploadBBNDXL(req, res) {
 
     // 1. Insert into uploads table
     const bbnduploadResult = await pool.query(
-      `INSERT INTO bbnd_uploads (dealership_id) VALUES ($1) RETURNING bbnd_upload_id, uploaded_at`,
-      [dealershipId]
+      `INSERT INTO bbnd_uploads (dealership_id,dealer_code) VALUES ($1,$2) RETURNING bbnd_upload_id, uploaded_at`,
+      [dealershipId,orderDealer]
     );
     const { bbnd_upload_id, uploaded_at } = bbnduploadResult.rows[0];
 
@@ -375,7 +375,11 @@ async function UploadBBNDXL(req, res) {
    
 
     await pool.query(insertQuery, insertValues);
+    
+    if(deletedData&&deletedData.length>0){
+      
     await pool.query(insertQueryDeleted,insertValuesDeleted)
+    }
 
     // Delete temp file
     fs.unlinkSync(filepath);
@@ -395,8 +399,6 @@ async function UploadBBNDXL(req, res) {
     res.status(500).json({ message: "Error uploading file" });
   }
 }
-
-
 
 async function AverageSalesUpload(req, res) {
   const { averageSales, dealer_id } = req.body;
