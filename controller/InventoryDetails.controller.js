@@ -141,7 +141,7 @@ async function SlowSnails(req, res) {
   const { rows } = await pool.query(query, params);
 
       const SlowSnails = rows?.filter(
-      (model) => model?.stock_data?.["Stock Age"] >= 15
+      (model) => model?.stock_data?.["Stock Age"] >= 75
     );
     const totalCapitalStuck = rows?.reduce((acc, items) => {
       const basicPrice = items?.stock_data["Basic Price"];
