@@ -23,7 +23,6 @@ app.use('/Dashboard',InventoryDetails)
 
 
 
-
 app.listen(PORT,()=>{
     console.log(`Server Started at port ${PORT}`);
 })

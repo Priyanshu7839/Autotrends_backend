@@ -412,6 +412,55 @@ async function GetBBNDInventoryStockUnits(req, res) {
   }
 }
 
+async function FetchFestiveSales(req,res) {
+  try {
+
+    const { dealership_id,dealer_code, toDate,fromDate } = req.body;
+
+   
+
+if (!fromDate || !toDate) {
+  return res.status(400).json({ message: "Both fromDate and toDate are required" });
+}
+
+const query = `
+  SELECT *
+  FROM sales_data
+  WHERE TO_DATE(stock_data->>'Delivery Date', 'DD/MM/YYYY')
+        BETWEEN TO_DATE($1, 'DD/MM/YYYY') AND TO_DATE($2, 'DD/MM/YYYY') AND dealership_id = $3 AND dealer_code = $4
+`;
+
+const result = await pool.query(query, [fromDate, toDate, dealership_id, dealer_code]);
+res.json({msg:result.rows});
+    
+  } catch (error) {
+    console.error("Error Fetching Sales",error)
+    res.status(500).json({message:"Error Fetching Deals"});
+  }
+}
+
+async function CustomerSalesHeader(req, res) {
+  const { dealership_id } = req.body;
+
+  try {
+    const response = await pool.query(`
+      SELECT DISTINCT stock_data->>'Model' AS value, 'Model' AS type
+      FROM sales_data
+      WHERE stock_data ? 'Model' AND dealership_id = $1
+
+      UNION
+
+      SELECT DISTINCT stock_data->>'Variant' AS value, 'Variant' AS type
+      FROM sales_data
+      WHERE stock_data ? 'Variant' AND dealership_id = $1
+    `, [dealership_id]);
+
+    return res.json({ filters: response.rows });
+  } catch (error) {
+    console.error("Error Fetching Sales", error);
+    res.status(500).json({ message: "Error Fetching Deals" });
+  }
+}
 
 module.exports = {
   FetchTotalInventoryUnits,
@@ -422,5 +471,7 @@ module.exports = {
   BBNDInventoryList,
   BBNDInventoryListOrderDealer,
   GetBBNDInventoryStockUnits,
-  InventoryListOrderDealer
+  InventoryListOrderDealer,
+  FetchFestiveSales,
+  CustomerSalesHeader
 };

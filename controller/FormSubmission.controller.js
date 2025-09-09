@@ -400,6 +400,76 @@ async function UploadBBNDXL(req, res) {
   }
 }
 
+async function UploadSalesXL(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const { orderDealer, dealershipId } = req.body;
+
+    if (!orderDealer) {
+      return res.status(400).json({ message: "Order Dealer is required" });
+    }
+    if (!dealershipId) {
+      return res.status(400).json({ message: "Dealership ID is required" });
+    }
+
+    const filepath = req.file.path;
+    const workbook = XLSX.readFile(filepath);
+    const sheetname = workbook.SheetNames[0];
+    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetname], {
+      defval: null,
+    });
+
+    if (sheetData.length === 0) {
+      fs.unlinkSync(filepath);
+      return res.json({ msg: "No Data found in Excel" });
+    }
+
+    // Prepare inserts
+    const insertValues = [];
+    const placeholders = [];
+
+    sheetData.forEach((row, i) => {
+      const idx = i * 3; // 3 params per row
+      insertValues.push(
+        dealershipId,
+        orderDealer,
+        JSON.stringify(row)
+      );
+      placeholders.push(
+        `($${idx + 1}, $${idx + 2}, $${idx + 3}::jsonb)`
+      );
+    });
+
+    const insertQuery = `
+      INSERT INTO sales_data (dealership_id, dealer_code, stock_data)
+      VALUES ${placeholders.join(", ")}
+       ON CONFLICT ((stock_data->>'Vin Number')) DO NOTHING
+    `;
+
+    await pool.query(insertQuery, insertValues);
+
+
+    // Delete temp file
+    fs.unlinkSync(filepath);
+
+    return res.json({
+      message: "Data uploaded successfully",
+      dealership_id: dealershipId,
+      order_dealer: orderDealer
+    });
+
+  } catch (error) {
+    console.error("Error uploading Excel:", error);
+    res.status(500).json({ message: "Error uploading file" });
+  }
+}
+
+
+
+
 async function AverageSalesUpload(req, res) {
   const { averageSales, dealer_id } = req.body;
 
@@ -426,5 +496,6 @@ module.exports = {
   UploadXL,
   AverageSalesUpload,
   BBNDUploadXLCompare,
-  UploadBBNDXL
+  UploadBBNDXL,
+  UploadSalesXL
 };
