@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { FetchTotalInventoryUnits, FastStars, SlowSnails, GetDealerCodes, InventoryList, BBNDInventoryList, BBNDInventoryListOrderDealer, GetBBNDInventoryStockUnits, InventoryListOrderDealer, FetchFestiveSales, CustomerSalesHeader } = require('../controller/InventoryDetails.controller');
+const { FetchTotalInventoryUnits, FastStars, SlowSnails, GetDealerCodes, InventoryList, BBNDInventoryList, BBNDInventoryListOrderDealer, GetBBNDInventoryStockUnits, InventoryListOrderDealer, FetchFestiveSales, CustomerSalesHeader, FetchCustomerSales } = require('../controller/InventoryDetails.controller');
 
 
 
@@ -14,6 +14,7 @@ router.post('/BBNDInventoryList',BBNDInventoryList)
 router.post('/BBNDInventoryListOrderDealer',BBNDInventoryListOrderDealer)
 router.post('/getbbndstockunits',GetBBNDInventoryStockUnits)
 router.post('/fetchfestivesales',FetchFestiveSales);
-router.post('/fetchsalesheader',CustomerSalesHeader)
+router.post('/fetchsalesheader',CustomerSalesHeader);
+router.post('/fetchcustomersales',FetchCustomerSales)
 
 module.exports = router

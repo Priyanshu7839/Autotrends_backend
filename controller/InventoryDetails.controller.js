@@ -457,8 +457,57 @@ async function CustomerSalesHeader(req, res) {
 
     return res.json({ filters: response.rows });
   } catch (error) {
+    console.error("Error Fetching Headers", error);
+    res.status(500).json({ message: "Error Fetching Headers" });
+  }
+}
+
+async function FetchCustomerSales(req, res) {
+  const { dealership_id, Model, Variant, Year,Month } = req.body;
+
+  try {
+    // start with the dealership id as $1
+    const values = [dealership_id];
+    const clauses = ['dealership_id = $1'];
+
+    // add Model if provided (truthy)
+    if (Model) {
+      values.push(Model);
+      clauses.push(`stock_data->>'Model' = $${values.length}`);
+    }
+
+    // add Variant if provided
+    if (Variant) {
+      values.push(Variant);
+      clauses.push(`stock_data->>'Variant' = $${values.length}`);
+    }
+
+    // add Year if provided and valid number
+    if (Year !== undefined && Year !== null && String(Year).trim() !== '') {
+     
+      const yearNumber = Number(Year);
+      if (!Number.isNaN(yearNumber)) {
+        values.push(yearNumber);
+        // cast extracted year to int and compare to the numeric param
+        clauses.push(`EXTRACT(YEAR FROM TO_DATE(stock_data->>'Confirm Date', 'DD/MM/YYYY'))::int = $${values.length}::int`);
+      }
+    }
+
+    if (Month) {
+      values.push(Number(Month));
+      clauses.push(
+        `EXTRACT(MONTH FROM TO_DATE(stock_data->>'Delivery Date', 'DD/MM/YYYY')) = $${values.length}`
+      );
+    }
+
+    const query = `SELECT * FROM sales_data WHERE ${clauses.join(' AND ')}`;
+    // (optional) console.log(query, values);
+
+    const response = await pool.query(query, values);
+    return res.json({ Sales: response.rows });
+  } catch (error) {
     console.error("Error Fetching Sales", error);
-    res.status(500).json({ message: "Error Fetching Deals" });
+    res.status(500).json({ message: "Error Fetching Sales" });
   }
 }
 
@@ -473,5 +522,6 @@ module.exports = {
   GetBBNDInventoryStockUnits,
   InventoryListOrderDealer,
   FetchFestiveSales,
-  CustomerSalesHeader
+  CustomerSalesHeader,
+  FetchCustomerSales
 };
