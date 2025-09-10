@@ -415,23 +415,48 @@ async function GetBBNDInventoryStockUnits(req, res) {
 async function FetchFestiveSales(req,res) {
   try {
 
-    const { dealership_id,dealer_code, toDate,fromDate } = req.body;
-
+    const { dealership_id,dealer_code, toDate,fromDate,Model, Variant,Insurance,Finance } = req.body;
+    
    
 
 if (!fromDate || !toDate) {
   return res.status(400).json({ message: "Both fromDate and toDate are required" });
 }
 
-const query = `
-  SELECT *
-  FROM sales_data
-  WHERE TO_DATE(stock_data->>'Delivery Date', 'DD/MM/YYYY')
-        BETWEEN TO_DATE($1, 'DD/MM/YYYY') AND TO_DATE($2, 'DD/MM/YYYY') AND dealership_id = $3 AND dealer_code = $4
-`;
 
-const result = await pool.query(query, [fromDate, toDate, dealership_id, dealer_code]);
-res.json({msg:result.rows});
+
+
+const values = [fromDate,toDate,dealership_id,dealer_code];
+const clauses = [`TO_DATE(stock_data->>'Delivery Date', 'DD/MM/YYYY')
+        BETWEEN TO_DATE($1, 'DD/MM/YYYY') AND TO_DATE($2, 'DD/MM/YYYY') AND dealership_id = $3 AND dealer_code = $4`]
+
+        if (Model) {
+      values.push(Model);
+      clauses.push(`stock_data->>'Model' = $${values.length}`);
+    }
+
+    if (Variant) {
+      values.push(Variant);
+      clauses.push(`stock_data->>'Variant' = $${values.length}`);
+    }
+
+    if (Insurance) {
+      values.push(Insurance);
+      clauses.push(`stock_data->>'Insurance Company Name' = $${values.length}`);
+    }
+
+   
+    if (Finance) {
+      values.push(Variant);
+      clauses.push(`stock_data->>'DSA/Financier' = $${values.length}`);
+    }
+   
+
+ const query = `SELECT * FROM sales_data WHERE ${clauses.join(' AND ')}`;
+
+ const response = await pool.query(query, values);
+    return res.json({ Sales: response.rows });
+
     
   } catch (error) {
     console.error("Error Fetching Sales",error)
@@ -453,6 +478,21 @@ async function CustomerSalesHeader(req, res) {
       SELECT DISTINCT stock_data->>'Variant' AS value, 'Variant' AS type
       FROM sales_data
       WHERE stock_data ? 'Variant' AND dealership_id = $1
+
+      UNION
+
+      SELECT DISTINCT stock_data->>'Insurance company name' AS value, 'Insurance' AS type
+      FROM sales_data
+      WHERE stock_data ? 'Variant' AND dealership_id = $1
+
+      UNION
+
+      SELECT DISTINCT stock_data->>'DSA/Financier' AS value, 'Finance' AS type
+      FROM sales_data
+      WHERE stock_data ? 'Variant' AND dealership_id = $1
+
+
+
     `, [dealership_id]);
 
     return res.json({ filters: response.rows });
@@ -510,6 +550,10 @@ async function FetchCustomerSales(req, res) {
     res.status(500).json({ message: "Error Fetching Sales" });
   }
 }
+
+
+
+
 
 module.exports = {
   FetchTotalInventoryUnits,
