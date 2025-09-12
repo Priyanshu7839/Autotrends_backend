@@ -1,3 +1,6 @@
+require("dotenv").config();
+
+
 const express = require('express');
 const carDetailsRoute = require('./routes/CarDetails');
 const userAuthRoute = require('./routes/userAuth.routes');

@@ -321,6 +321,7 @@ async function BBNDInventoryList(req, res) {
   const { rows } = await pool.query(query, params);
 
   const {rows2} = await pool.query(query2,params);
+  
   const uploaded_at = await pool.query(`Select uploaded_at from bbnd_uploads where dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,[dealer_id])
  
   
@@ -357,10 +358,11 @@ async function BBNDInventoryListOrderDealer(req, res) {
 
     const stock_data = response?.rows
 
-     const deleted = await pool.query(`Select stock_data,created_at from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = $2`,[dealer_id,dealer_code])
+     const deleted = await pool.query(`Select deleted_bbnd_inventory_id,stock_data,created_at,"OTP Status","OTP Verification Date" from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = $2`,[dealer_id,dealer_code])
       return res.json({ msg: "Data Fetched",stock:stock_data,deleted:deleted?.rows,upload_at:uploaded_at });
 
   } catch (error) {
+    console.log(error)
     return res.json({ msg: `${error}` });
   }
 }
