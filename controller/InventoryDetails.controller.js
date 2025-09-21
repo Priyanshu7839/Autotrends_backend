@@ -1,4 +1,5 @@
 const pool = require("../connection");
+const {  normalizeStockArray } = require("../Service/StockHeaderNormalizer");
 
 async function FetchTotalInventoryUnits(req, res) {
  
@@ -217,11 +218,14 @@ async function InventoryList(req, res) {
 
   const { rows } = await pool.query(query, params);
 
+  const normalized = normalizeStockArray(rows)
+ 
+
   const uploaded_at = await pool.query(`Select uploaded_at from uploads where dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,[dealer_id])
  
  
   
-  return res.json({ msg: "Data Fetched",stock:rows,lastUpdate:uploaded_at?.rows?.[0]?.uploaded_at});
+  return res.json({ msg: "Data Fetched",stock:normalized,lastUpdate:uploaded_at?.rows?.[0]?.uploaded_at});
 
   
     
@@ -254,8 +258,10 @@ async function InventoryListOrderDealer(req,res) {
 
     const stock_data = response?.rows
 
+    const normalized = normalizeStockArray(response?.rows)
+
     
-      return res.json({ msg: "Data Fetched",stock:stock_data,lastUpdate:uploaded_at });
+      return res.json({ msg: "Data Fetched",stock:normalized,lastUpdate:uploaded_at });
 
   } catch (error) {
     return res.json({ msg: `${error}` });

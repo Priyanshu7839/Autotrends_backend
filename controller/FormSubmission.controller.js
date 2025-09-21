@@ -153,16 +153,28 @@ async function UploadXL(req, res) {
     const filepath = req.file.path;
     const workbook = XLSX.readFile(filepath);
     const sheetname = workbook.SheetNames[0];
-    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetname], {
+    const sheetDataRaw = XLSX.utils.sheet_to_json(workbook.Sheets[sheetname], {
       defval: null,
     });
 
-    if (sheetData.length === 0) {
+    
+
+    if (sheetDataRaw.length === 0) {
       fs.unlinkSync(filepath);
       return res.json({ msg: "No Data found in Excel" });
     }
 
-    // Assume dealership_id is also passed in request body
+    const sheetData = sheetDataRaw.map(row => {
+  const newRow = {};
+  for (let key in row) {
+    if (row.hasOwnProperty(key)) {
+      const trimmedKey = key.trim();  // <-- trim the key
+      newRow[trimmedKey] = row[key];
+    }
+  }
+  return newRow;
+});
+
     const { dealershipId } = req.body;
     if (!dealershipId) {
       return res.status(400).json({ message: "Dealership ID is required" });

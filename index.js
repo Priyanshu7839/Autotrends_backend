@@ -2,7 +2,7 @@ require("dotenv").config();
 
 
 const express = require('express');
-const carDetailsRoute = require('./routes/CarDetails');
+const carDetailsRoute = require('./routes/CarDetails.routes');
 const userAuthRoute = require('./routes/userAuth.routes');
 const forSubmisiionRoute = require('./routes/ForSubmisiion.routes');
 const InventoryDetails = require('./routes/InventoryDetails.routes')
