@@ -1,5 +1,5 @@
 const headerMap = {
-  "Sign Age": ["Stock Age", "Ageing"],
+  "Stock Age": ["Stock Age", "Ageing"],
   "Model": ["Model", "Model Group"],
   "Variant":["Variant","Model Description"],
   "Exterior Color Name":["Exterior Color Name","Color"],
