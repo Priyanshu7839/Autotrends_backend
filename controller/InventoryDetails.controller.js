@@ -52,7 +52,6 @@ async function FetchTotalInventoryUnits(req, res) {
     return res.json({ msg: `${error}` });
   }
 }
-
 async function FastStars(req, res) {
 
    const { dealer_id,dealerCodes } = req.body;
@@ -162,7 +161,6 @@ async function SlowSnails(req, res) {
     return res.json({ msg: `${error}` });
   }
 }
-
 async function GetDealerCodes(req, res) {
   const { dealership_id } = req.body;
 
@@ -177,7 +175,6 @@ async function GetDealerCodes(req, res) {
     return res.json({ error: error.response });
   }
 }
-
 async function InventoryList(req, res) {
   const { dealer_id,dealerCodes } = req.body;
   if(dealerCodes.length === 0){
@@ -209,13 +206,6 @@ async function InventoryList(req, res) {
 
   const params = [dealer_id,dealerCodes];
 
-  
-  
-
-
-
-
-
   const { rows } = await pool.query(query, params);
 
   const normalized = normalizeStockArray(rows)
@@ -223,14 +213,8 @@ async function InventoryList(req, res) {
 
   const uploaded_at = await pool.query(`Select uploaded_at from uploads where dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,[dealer_id])
  
- 
   
   return res.json({ msg: "Data Fetched",stock:normalized,lastUpdate:uploaded_at?.rows?.[0]?.uploaded_at});
-
-  
-    
-
-   
 
 
   } catch (error) {
@@ -275,6 +259,7 @@ async function BBNDInventoryList(req, res) {
     return res.json({"msg":"Dealer codes empty"})
   }
 
+
   try {
    const query = `
     WITH latest_uploads AS (
@@ -298,27 +283,11 @@ async function BBNDInventoryList(req, res) {
   `;
 
   const params = [dealer_id,dealerCodes];
-  
-  const query2 = `
-    WITH latest_uploads AS (
-        SELECT 
-            bbnd_upload_id,
-            uploaded_at,
-            dealer_code,
-            ROW_NUMBER() OVER (PARTITION BY dealer_code ORDER BY uploaded_at DESC) AS rn
-        FROM bbnd_uploads
-        WHERE dealership_id = $1
-          AND dealer_code = ANY($2::text[])
-    )
-    SELECT 
-        i.*, 
-        l.uploaded_at
-    FROM latest_uploads l
-    JOIN deleted_bbnd_inventory i
-      ON i.dealer_code = l.dealer_code
-     AND i.bbnd_upload_id   = l.bbnd_upload_id
-    WHERE l.rn = 1;
+   const query2 = `
+  select * from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = ANY($2::text[]) and "OTP Status" = false
   `;
+
+  
 
 
 
@@ -326,12 +295,12 @@ async function BBNDInventoryList(req, res) {
 
   const { rows } = await pool.query(query, params);
 
-  const {rows2} = await pool.query(query2,params);
+  const response = await pool.query(query2,params);
   
   const uploaded_at = await pool.query(`Select uploaded_at from bbnd_uploads where dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,[dealer_id])
  
   
-  return res.json({ msg: "Data Fetched",stock:rows,deleted:rows2,lastUpdate:uploaded_at?.rows?.[0]?.uploaded_at });
+  return res.json({ msg: "Data Fetched",stock:rows,deleted:response.rows,lastUpdate:uploaded_at?.rows?.[0]?.uploaded_at });
 
   
     
@@ -347,6 +316,7 @@ async function BBNDInventoryList(req, res) {
 
 async function BBNDInventoryListOrderDealer(req, res) {
   const { dealer_id, dealer_code } = req.body;
+  
 
   try {
     const bbnduploadData = await pool.query(
@@ -364,7 +334,7 @@ async function BBNDInventoryListOrderDealer(req, res) {
 
     const stock_data = response?.rows
 
-     const deleted = await pool.query(`Select deleted_bbnd_inventory_id,stock_data,created_at,"OTP Status","OTP Verification Date" from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = $2`,[dealer_id,dealer_code])
+     const deleted = await pool.query(`Select deleted_bbnd_inventory_id,stock_data,created_at,"OTP Status","OTP Verification Date" from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = $2 and "OTP Status" = false`,[dealer_id,dealer_code])
       return res.json({ msg: "Data Fetched",stock:stock_data,deleted:deleted?.rows,upload_at:uploaded_at });
 
   } catch (error) {
@@ -561,6 +531,120 @@ async function FetchCustomerSales(req, res) {
 
 
 
+async function MasterInventoryList(req, res) {
+  const { dealer_id, dealerCodes } = req.body;
+
+  if (!dealerCodes || dealerCodes.length === 0) {
+    return res.json({ msg: "Dealer codes empty" });
+  }
+
+  try {
+    // Queries for BBND Inventory (stock + deleted)
+    const bbndQuery = `
+      WITH latest_uploads AS (
+          SELECT 
+              bbnd_upload_id,
+              uploaded_at,
+              dealer_code,
+              ROW_NUMBER() OVER (PARTITION BY dealer_code ORDER BY uploaded_at DESC) AS rn
+          FROM bbnd_uploads
+          WHERE dealership_id = $1
+            AND dealer_code = ANY($2::text[])
+      )
+      SELECT 
+          i.*, 
+          l.uploaded_at
+      FROM latest_uploads l
+      JOIN bbnd_inventory i
+        ON i.dealer_code = l.dealer_code
+       AND i.bbnd_upload_id   = l.bbnd_upload_id
+      WHERE l.rn = 1;
+    `;
+
+    const bbndDeletedQuery = `
+      WITH latest_uploads AS (
+          SELECT 
+              bbnd_upload_id,
+              uploaded_at,
+              dealer_code,
+              ROW_NUMBER() OVER (PARTITION BY dealer_code ORDER BY uploaded_at DESC) AS rn
+          FROM bbnd_uploads
+          WHERE dealership_id = $1
+            AND dealer_code = ANY($2::text[])
+      )
+      SELECT 
+          i.*, 
+          l.uploaded_at
+      FROM latest_uploads l
+      JOIN deleted_bbnd_inventory i
+        ON i.dealer_code = l.dealer_code
+       AND i.bbnd_upload_id   = l.bbnd_upload_id
+      WHERE l.rn = 1;
+    `;
+
+    // Query for Main Inventory
+    const mainQuery = `
+      WITH latest_uploads AS (
+          SELECT 
+              upload_id,
+              uploaded_at,
+              dealer_code,
+              ROW_NUMBER() OVER (PARTITION BY dealer_code ORDER BY uploaded_at DESC) AS rn
+          FROM uploads
+          WHERE dealership_id = $1
+            AND dealer_code = ANY($2::text[])
+      )
+      SELECT 
+          i.*, 
+          l.uploaded_at
+      FROM latest_uploads l
+      JOIN main_inventory i
+        ON i.dealer_code = l.dealer_code
+       AND i.upload_id   = l.upload_id
+      WHERE l.rn = 1;
+    `;
+
+    const params = [dealer_id, dealerCodes];
+
+    // Run all queries in parallel
+    const [bbndStock, bbndDeleted, mainStock, bbndLast, mainLast] = await Promise.all([
+      pool.query(bbndQuery, params),
+      pool.query(bbndDeletedQuery, params),
+      pool.query(mainQuery, params),
+      pool.query(`SELECT uploaded_at FROM bbnd_uploads WHERE dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`, [dealer_id]),
+      pool.query(`SELECT uploaded_at FROM uploads WHERE dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`, [dealer_id])
+    ]);
+
+    // Normalize main inventory if needed
+    const combinedStock = [...bbndStock.rows, ...mainStock.rows];
+    const normalizedStock = normalizeStockArray(combinedStock);
+
+    // Take the most recent timestamp among both sources
+    const lastUpdate = [
+      bbndLast?.rows?.[0]?.uploaded_at,
+      mainLast?.rows?.[0]?.uploaded_at
+    ].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
+
+    return res.json({
+      msg: "Master Data Fetched",
+     stock:normalizedStock,
+     deleted:bbndDeleted.rows,
+     lastUpdate:lastUpdate,
+     bbndStock:bbndStock.rows,
+     mainStock:mainStock.rows,
+     bbndUnits:bbndStock.rows.length,
+     mainUnits:mainStock.rows.length
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.json({ msg: `${error}` });
+  }
+}
+
+
+
+
 
 
 module.exports = {
@@ -575,5 +659,6 @@ module.exports = {
   InventoryListOrderDealer,
   FetchFestiveSales,
   CustomerSalesHeader,
-  FetchCustomerSales
+  FetchCustomerSales,
+  MasterInventoryList
 };
