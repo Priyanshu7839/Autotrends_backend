@@ -1,16 +1,14 @@
 const pool = require("../connection");
-const {  normalizeStockArray } = require("../Service/StockHeaderNormalizer");
+const { normalizeStockArray } = require("../Service/StockHeaderNormalizer");
 
 async function FetchTotalInventoryUnits(req, res) {
- 
-    const { dealer_id,dealerCodes } = req.body;
-  if(dealerCodes && dealerCodes.length === 0){
-
-    return res.json({"msg":"Dealer codes empty"})
+  const { dealer_id, dealerCodes } = req.body;
+  if (dealerCodes && dealerCodes.length === 0) {
+    return res.json({ msg: "Dealer codes empty" });
   }
 
   try {
-   const query = `
+    const query = `
     WITH latest_uploads AS (
         SELECT 
             upload_id,
@@ -31,37 +29,24 @@ async function FetchTotalInventoryUnits(req, res) {
     WHERE l.rn = 1;
   `;
 
-  const params = [dealer_id,dealerCodes];
+    const params = [dealer_id, dealerCodes];
 
-  
-  
+    const { rows } = await pool.query(query, params);
 
-
-
-
-
-  const { rows } = await pool.query(query, params);
-
-
-  
-   return res.json({ Units:rows?.length });
-
-
+    return res.json({ Units: rows?.length });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.json({ msg: `${error}` });
   }
 }
 async function FastStars(req, res) {
-
-   const { dealer_id,dealerCodes } = req.body;
-  if(dealerCodes && dealerCodes.length === 0){
-
-    return res.json({"msg":"Dealer codes empty"})
+  const { dealer_id, dealerCodes } = req.body;
+  if (dealerCodes && dealerCodes.length === 0) {
+    return res.json({ msg: "Dealer codes empty" });
   }
 
   try {
-   const query = `
+    const query = `
     WITH latest_uploads AS (
         SELECT 
             upload_id,
@@ -82,11 +67,11 @@ async function FastStars(req, res) {
     WHERE l.rn = 1;
   `;
 
-  const params = [dealer_id,dealerCodes];
+    const params = [dealer_id, dealerCodes];
 
-  const { rows } = await pool.query(query, params);
+    const { rows } = await pool.query(query, params);
 
-      const FastStars = rows?.filter(
+    const FastStars = rows?.filter(
       (model) => model?.stock_data?.["Stock Age"] <= 15
     );
     const totalCapitalStuck = rows?.reduce((acc, items) => {
@@ -100,22 +85,19 @@ async function FastStars(req, res) {
       data: FastStars,
       totalCapitalStuck: totalCapitalStuck,
     });
-
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.json({ msg: `${error}` });
   }
 }
 async function SlowSnails(req, res) {
-
-   const { dealer_id,dealerCodes } = req.body;
-  if(dealerCodes && dealerCodes.length === 0){
-
-    return res.json({"msg":"Dealer codes empty"})
+  const { dealer_id, dealerCodes } = req.body;
+  if (dealerCodes && dealerCodes.length === 0) {
+    return res.json({ msg: "Dealer codes empty" });
   }
 
   try {
-   const query = `
+    const query = `
     WITH latest_uploads AS (
         SELECT 
             upload_id,
@@ -136,11 +118,11 @@ async function SlowSnails(req, res) {
     WHERE l.rn = 1;
   `;
 
-  const params = [dealer_id,dealerCodes];
+    const params = [dealer_id, dealerCodes];
 
-  const { rows } = await pool.query(query, params);
+    const { rows } = await pool.query(query, params);
 
-      const SlowSnails = rows?.filter(
+    const SlowSnails = rows?.filter(
       (model) => model?.stock_data?.["Stock Age"] >= 75
     );
     const totalCapitalStuck = rows?.reduce((acc, items) => {
@@ -148,16 +130,14 @@ async function SlowSnails(req, res) {
       return acc + basicPrice;
     }, 0);
 
-  
-     return res.json({
+    return res.json({
       msg: "Data Fetched",
       SlowSnailsCount: SlowSnails?.length,
       data: SlowSnails,
       totalCapitalStuck: totalCapitalStuck,
     });
-
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.json({ msg: `${error}` });
   }
 }
@@ -176,14 +156,13 @@ async function GetDealerCodes(req, res) {
   }
 }
 async function InventoryList(req, res) {
-  const { dealer_id,dealerCodes } = req.body;
-  if(dealerCodes.length === 0){
-
-    return res.json({"msg":"Dealer codes empty"})
+  const { dealer_id, dealerCodes } = req.body;
+  if (dealerCodes.length === 0) {
+    return res.json({ msg: "Dealer codes empty" });
   }
 
   try {
-   const query = `
+    const query = `
     WITH latest_uploads AS (
         SELECT 
             upload_id,
@@ -204,64 +183,66 @@ async function InventoryList(req, res) {
     WHERE l.rn = 1;
   `;
 
-  const params = [dealer_id,dealerCodes];
+    const params = [dealer_id, dealerCodes];
 
-  const { rows } = await pool.query(query, params);
+    const { rows } = await pool.query(query, params);
 
-  const normalized = normalizeStockArray(rows)
- 
+    const normalized = normalizeStockArray(rows);
 
-  const uploaded_at = await pool.query(`Select uploaded_at from uploads where dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,[dealer_id])
- 
-  
-  return res.json({ msg: "Data Fetched",stock:normalized,lastUpdate:uploaded_at?.rows?.[0]?.uploaded_at});
+    const uploaded_at = await pool.query(
+      `Select uploaded_at from uploads where dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
+      [dealer_id]
+    );
 
-
+    return res.json({
+      msg: "Data Fetched",
+      stock: normalized,
+      lastUpdate: uploaded_at?.rows?.[0]?.uploaded_at,
+    });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.json({ msg: `${error}` });
   }
 }
 
-async function InventoryListOrderDealer(req,res) {
- const { dealer_id, dealer_code } = req.body;
+async function InventoryListOrderDealer(req, res) {
+  const { dealer_id, dealer_code } = req.body;
 
   try {
     const uploadData = await pool.query(
       `SELECT upload_id,uploaded_at FROM uploads WHERE dealership_id = $1 AND dealer_code = $2 ORDER BY uploaded_at DESC LIMIT 1`,
-      [dealer_id,dealer_code]
+      [dealer_id, dealer_code]
     );
     const upload_id = uploadData.rows?.[0]?.upload_id;
     const uploaded_at = uploadData.rows?.[0]?.uploaded_at;
-
 
     const response = await pool.query(
       `Select stock_data from main_inventory WHERE upload_id = $1 AND dealer_code = $2`,
       [upload_id, dealer_code]
     );
 
-    const stock_data = response?.rows
+    const stock_data = response?.rows;
 
-    const normalized = normalizeStockArray(response?.rows)
+    const normalized = normalizeStockArray(response?.rows);
 
-    
-      return res.json({ msg: "Data Fetched",stock:normalized,lastUpdate:uploaded_at });
-
+    return res.json({
+      msg: "Data Fetched",
+      stock: normalized,
+      lastUpdate: uploaded_at,
+    });
   } catch (error) {
     return res.json({ msg: `${error}` });
   }
 }
 
 async function BBNDInventoryList(req, res) {
-  const { dealer_id,dealerCodes } = req.body;
-  if(dealerCodes.length === 0){
-
-    return res.json({"msg":"Dealer codes empty"})
+  const { dealer_id, dealerCodes } = req.body;
+  if (dealerCodes.length === 0) {
+    return res.json({ msg: "Dealer codes empty" });
   }
 
-
   try {
-   const query = `
+    const query = `
     WITH latest_uploads AS (
         SELECT 
             bbnd_upload_id,
@@ -282,76 +263,74 @@ async function BBNDInventoryList(req, res) {
     WHERE l.rn = 1;
   `;
 
-  const params = [dealer_id,dealerCodes];
-   const query2 = `
+    const params = [dealer_id, dealerCodes];
+    const query2 = `
   select * from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = ANY($2::text[]) and "OTP Status" = false
   `;
 
-  
+    const { rows } = await pool.query(query, params);
 
+    const response = await pool.query(query2, params);
 
+    const uploaded_at = await pool.query(
+      `Select uploaded_at from bbnd_uploads where dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
+      [dealer_id]
+    );
 
-
-
-  const { rows } = await pool.query(query, params);
-
-  const response = await pool.query(query2,params);
-  
-  const uploaded_at = await pool.query(`Select uploaded_at from bbnd_uploads where dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,[dealer_id])
- 
-  
-  return res.json({ msg: "Data Fetched",stock:rows,deleted:response.rows,lastUpdate:uploaded_at?.rows?.[0]?.uploaded_at });
-
-  
-    
-
-   
-
-
+    return res.json({
+      msg: "Data Fetched",
+      stock: rows,
+      deleted: response.rows,
+      lastUpdate: uploaded_at?.rows?.[0]?.uploaded_at,
+    });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.json({ msg: `${error}` });
   }
 }
 
 async function BBNDInventoryListOrderDealer(req, res) {
   const { dealer_id, dealer_code } = req.body;
-  
 
   try {
     const bbnduploadData = await pool.query(
       `SELECT bbnd_upload_id,uploaded_at FROM bbnd_uploads WHERE dealership_id = $1 AND dealer_code = $2 ORDER BY uploaded_at DESC LIMIT 1`,
-      [dealer_id,dealer_code]
+      [dealer_id, dealer_code]
     );
     const bbnd_upload_id = bbnduploadData.rows?.[0]?.bbnd_upload_id;
     const uploaded_at = bbnduploadData.rows?.[0]?.uploaded_at;
-
 
     const response = await pool.query(
       `Select stock_data from bbnd_inventory WHERE bbnd_upload_id = $1 AND dealer_code = $2`,
       [bbnd_upload_id, dealer_code]
     );
 
-    const stock_data = response?.rows
+    const stock_data = response?.rows;
 
-     const deleted = await pool.query(`Select deleted_bbnd_inventory_id,stock_data,created_at,"OTP Status","OTP Verification Date" from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = $2 and "OTP Status" = false`,[dealer_id,dealer_code])
-      return res.json({ msg: "Data Fetched",stock:stock_data,deleted:deleted?.rows,upload_at:uploaded_at });
-
+    const deleted = await pool.query(
+      `Select deleted_bbnd_inventory_id,stock_data,created_at,"OTP Status","OTP Verification Date" from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = $2 and "OTP Status" = false`,
+      [dealer_id, dealer_code]
+    );
+    return res.json({
+      msg: "Data Fetched",
+      stock: stock_data,
+      deleted: deleted?.rows,
+      upload_at: uploaded_at,
+    });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.json({ msg: `${error}` });
   }
 }
 
 async function GetBBNDInventoryStockUnits(req, res) {
-    const { dealer_id,dealerCodes } = req.body;
-  if(dealerCodes.length === 0){
-
-    return res.json({"msg":"Dealer codes empty"})
+  const { dealer_id, dealerCodes } = req.body;
+  if (dealerCodes.length === 0) {
+    return res.json({ msg: "Dealer codes empty" });
   }
 
   try {
-   const query = `
+    const query = `
     WITH latest_uploads AS (
         SELECT 
             bbnd_upload_id,
@@ -372,43 +351,43 @@ async function GetBBNDInventoryStockUnits(req, res) {
     WHERE l.rn = 1;
   `;
 
-  const params = [dealer_id,dealerCodes];
+    const params = [dealer_id, dealerCodes];
 
-  const { rows } = await pool.query(query, params);
+    const { rows } = await pool.query(query, params);
 
-  return res.json({ msg: "Data Fetched",Units:rows?.length });
-
-  
-    
-
-   
-
-
+    return res.json({ msg: "Data Fetched", Units: rows?.length });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.json({ msg: `${error}` });
   }
 }
 
-async function FetchFestiveSales(req,res) {
+async function FetchFestiveSales(req, res) {
   try {
+    const {
+      dealership_id,
+      dealer_code,
+      toDate,
+      fromDate,
+      Model,
+      Variant,
+      Insurance,
+      Finance,
+    } = req.body;
 
-    const { dealership_id,dealer_code, toDate,fromDate,Model, Variant,Insurance,Finance } = req.body;
-    
-   
+    if (!fromDate || !toDate) {
+      return res
+        .status(400)
+        .json({ message: "Both fromDate and toDate are required" });
+    }
 
-if (!fromDate || !toDate) {
-  return res.status(400).json({ message: "Both fromDate and toDate are required" });
-}
+    const values = [fromDate, toDate, dealership_id, dealer_code];
+    const clauses = [
+      `TO_DATE(stock_data->>'Delivery Date', 'DD/MM/YYYY')
+        BETWEEN TO_DATE($1, 'DD/MM/YYYY') AND TO_DATE($2, 'DD/MM/YYYY') AND dealership_id = $3 AND dealer_code = $4`,
+    ];
 
-
-
-
-const values = [fromDate,toDate,dealership_id,dealer_code];
-const clauses = [`TO_DATE(stock_data->>'Delivery Date', 'DD/MM/YYYY')
-        BETWEEN TO_DATE($1, 'DD/MM/YYYY') AND TO_DATE($2, 'DD/MM/YYYY') AND dealership_id = $3 AND dealer_code = $4`]
-
-        if (Model) {
+    if (Model) {
       values.push(Model);
       clauses.push(`stock_data->>'Model' = $${values.length}`);
     }
@@ -423,22 +402,18 @@ const clauses = [`TO_DATE(stock_data->>'Delivery Date', 'DD/MM/YYYY')
       clauses.push(`stock_data->>'Insurance Company Name' = $${values.length}`);
     }
 
-   
     if (Finance) {
       values.push(Variant);
       clauses.push(`stock_data->>'DSA/Financier' = $${values.length}`);
     }
-   
 
- const query = `SELECT * FROM sales_data WHERE ${clauses.join(' AND ')}`;
+    const query = `SELECT * FROM sales_data WHERE ${clauses.join(" AND ")}`;
 
- const response = await pool.query(query, values);
+    const response = await pool.query(query, values);
     return res.json({ Sales: response.rows });
-
-    
   } catch (error) {
-    console.error("Error Fetching Sales",error)
-    res.status(500).json({message:"Error Fetching Deals"});
+    console.error("Error Fetching Sales", error);
+    res.status(500).json({ message: "Error Fetching Deals" });
   }
 }
 
@@ -446,7 +421,8 @@ async function CustomerSalesHeader(req, res) {
   const { dealership_id } = req.body;
 
   try {
-    const response = await pool.query(`
+    const response = await pool.query(
+      `
       SELECT DISTINCT stock_data->>'Model' AS value, 'Model' AS type
       FROM sales_data
       WHERE stock_data ? 'Model' AND dealership_id = $1
@@ -471,7 +447,9 @@ async function CustomerSalesHeader(req, res) {
 
 
 
-    `, [dealership_id]);
+    `,
+      [dealership_id]
+    );
 
     return res.json({ filters: response.rows });
   } catch (error) {
@@ -481,12 +459,12 @@ async function CustomerSalesHeader(req, res) {
 }
 
 async function FetchCustomerSales(req, res) {
-  const { dealership_id, Model, Variant, Year,Month } = req.body;
+  const { dealership_id, Model, Variant, Year, Month } = req.body;
 
   try {
     // start with the dealership id as $1
     const values = [dealership_id];
-    const clauses = ['dealership_id = $1'];
+    const clauses = ["dealership_id = $1"];
 
     // add Model if provided (truthy)
     if (Model) {
@@ -501,13 +479,14 @@ async function FetchCustomerSales(req, res) {
     }
 
     // add Year if provided and valid number
-    if (Year !== undefined && Year !== null && String(Year).trim() !== '') {
-     
+    if (Year !== undefined && Year !== null && String(Year).trim() !== "") {
       const yearNumber = Number(Year);
       if (!Number.isNaN(yearNumber)) {
         values.push(yearNumber);
         // cast extracted year to int and compare to the numeric param
-        clauses.push(`EXTRACT(YEAR FROM TO_DATE(stock_data->>'Confirm Date', 'DD/MM/YYYY'))::int = $${values.length}::int`);
+        clauses.push(
+          `EXTRACT(YEAR FROM TO_DATE(stock_data->>'Confirm Date', 'DD/MM/YYYY'))::int = $${values.length}::int`
+        );
       }
     }
 
@@ -518,7 +497,7 @@ async function FetchCustomerSales(req, res) {
       );
     }
 
-    const query = `SELECT * FROM sales_data WHERE ${clauses.join(' AND ')}`;
+    const query = `SELECT * FROM sales_data WHERE ${clauses.join(" AND ")}`;
     // (optional) console.log(query, values);
 
     const response = await pool.query(query, values);
@@ -528,8 +507,6 @@ async function FetchCustomerSales(req, res) {
     res.status(500).json({ message: "Error Fetching Sales" });
   }
 }
-
-
 
 async function MasterInventoryList(req, res) {
   const { dealer_id, dealerCodes } = req.body;
@@ -607,45 +584,108 @@ async function MasterInventoryList(req, res) {
     const params = [dealer_id, dealerCodes];
 
     // Run all queries in parallel
-    const [bbndStock, bbndDeleted, mainStock, bbndLast, mainLast] = await Promise.all([
-      pool.query(bbndQuery, params),
-      pool.query(bbndDeletedQuery, params),
-      pool.query(mainQuery, params),
-      pool.query(`SELECT uploaded_at FROM bbnd_uploads WHERE dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`, [dealer_id]),
-      pool.query(`SELECT uploaded_at FROM uploads WHERE dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`, [dealer_id])
-    ]);
+    const [bbndStock, bbndDeleted, mainStock, bbndLast, mainLast] =
+      await Promise.all([
+        pool.query(bbndQuery, params),
+        pool.query(bbndDeletedQuery, params),
+        pool.query(mainQuery, params),
+        pool.query(
+          `SELECT uploaded_at FROM bbnd_uploads WHERE dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
+          [dealer_id]
+        ),
+        pool.query(
+          `SELECT uploaded_at FROM uploads WHERE dealership_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
+          [dealer_id]
+        ),
+      ]);
 
     // Normalize main inventory if needed
     const combinedStock = [...bbndStock.rows, ...mainStock.rows];
     const normalizedStock = normalizeStockArray(combinedStock);
 
     // Take the most recent timestamp among both sources
-    const lastUpdate = [
-      bbndLast?.rows?.[0]?.uploaded_at,
-      mainLast?.rows?.[0]?.uploaded_at
-    ].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] || null;
+    const lastUpdate =
+      [bbndLast?.rows?.[0]?.uploaded_at, mainLast?.rows?.[0]?.uploaded_at]
+        .filter(Boolean)
+        .sort((a, b) => new Date(b) - new Date(a))[0] || null;
 
     return res.json({
       msg: "Master Data Fetched",
-     stock:normalizedStock,
-     deleted:bbndDeleted.rows,
-     lastUpdate:lastUpdate,
-     bbndStock:bbndStock.rows,
-     mainStock:mainStock.rows,
-     bbndUnits:bbndStock.rows.length,
-     mainUnits:mainStock.rows.length
+      stock: normalizedStock,
+      deleted: bbndDeleted.rows,
+      lastUpdate: lastUpdate,
+      bbndStock: normalizeStockArray(bbndStock.rows),
+      mainStock: normalizeStockArray(mainStock.rows),
+      bbndUnits: bbndStock.rows.length,
+      mainUnits: mainStock.rows.length,
     });
-
   } catch (error) {
     console.error(error);
     return res.json({ msg: `${error}` });
   }
 }
 
+async function MasterInventoryListOrderDealer(req, res) {
+  const { dealer_id, dealer_code } = req.body;
 
+  try {
+    const uploadData = await pool.query(
+      `SELECT upload_id,uploaded_at FROM uploads WHERE dealership_id = $1 AND dealer_code = $2 ORDER BY uploaded_at DESC LIMIT 1`,
+      [dealer_id, dealer_code]
+    );
 
+    const upload_id = uploadData.rows?.[0]?.upload_id;
+    const uploaded_at = uploadData.rows?.[0]?.uploaded_at;
 
+    const response = await pool.query(
+      `Select stock_data from main_inventory WHERE upload_id = $1 AND dealer_code = $2`,
+      [upload_id, dealer_code]
+    );
 
+    const main_stock = response?.rows;
+
+    const bbnduploadData = await pool.query(
+      `SELECT bbnd_upload_id,uploaded_at FROM bbnd_uploads WHERE dealership_id = $1 AND dealer_code = $2 ORDER BY uploaded_at DESC LIMIT 1`,
+      [dealer_id, dealer_code]
+    );
+    const bbnd_upload_id = bbnduploadData.rows?.[0]?.bbnd_upload_id;
+    const bbnd_uploaded_at = bbnduploadData.rows?.[0]?.uploaded_at;
+
+    const response1 = await pool.query(
+      `Select stock_data from bbnd_inventory WHERE bbnd_upload_id = $1 AND dealer_code = $2`,
+      [bbnd_upload_id, dealer_code]
+    );
+
+    const bbnd_stock = response1?.rows;
+
+    const deleted = await pool.query(
+      `Select deleted_bbnd_inventory_id,stock_data,created_at,"OTP Status","OTP Verification Date" from deleted_bbnd_inventory where dealer_id = $1 and dealer_code = $2 and "OTP Status" = false`,
+      [dealer_id, dealer_code]
+    );
+
+    const combinedStock = [...main_stock, ...bbnd_stock];
+    const normalizedStock = normalizeStockArray(combinedStock);
+
+    const lastUpdate =
+      new Date(uploaded_at) > new Date(bbnd_uploaded_at)
+        ? uploaded_at
+        : bbnd_uploaded_at;
+
+    return res.json({
+      msg: "Master Data Fetched",
+      stock: normalizedStock,
+      deleted: normalizeStockArray(deleted?.rows),
+      lastUpdate: lastUpdate,
+      bbndStock: normalizeStockArray(bbnd_stock),
+      mainStock: normalizeStockArray(main_stock),
+      bbndUnits: bbnd_stock?.length,
+      mainUnits: main_stock?.length,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.json({ msg: `${error}` });
+  }
+}
 
 module.exports = {
   FetchTotalInventoryUnits,
@@ -660,5 +700,6 @@ module.exports = {
   FetchFestiveSales,
   CustomerSalesHeader,
   FetchCustomerSales,
-  MasterInventoryList
+  MasterInventoryList,
+  MasterInventoryListOrderDealer,
 };

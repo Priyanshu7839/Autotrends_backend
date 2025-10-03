@@ -3,7 +3,7 @@ const headerMap = {
   Model: ["Model", "Model Group"],
   Variant: ["Variant", "Model Description"],
   "Exterior Color Name": ["Exterior Color Name", "Color"],
-  "Vin Number": ["Vin Number", "VIN"],
+  "Vin Number": ["Vin Number", "VIN"], // also update at the compare parts step
   "Stock Status": ["Stock Status", "Vehicle Status"],
   "Basic Price": ["Basic Price", "Net Dealer Price"],
 };
