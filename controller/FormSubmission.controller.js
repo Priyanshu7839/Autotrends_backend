@@ -145,16 +145,15 @@ async function UploadXL(req, res) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const { orderDealer } = req.body; 
+    const { orderDealer } = req.body;
     if (!orderDealer) {
       return res.status(400).json({ message: "Order Dealer is required" });
     }
 
-     const { dealershipId } = req.body;
+    const { dealershipId } = req.body;
     if (!dealershipId) {
       return res.status(400).json({ message: "Dealership ID is required" });
     }
-
 
     const filepath = req.file.path;
     const workbook = XLSX.readFile(filepath);
@@ -182,69 +181,62 @@ async function UploadXL(req, res) {
     // * ////////////////////////////////Deleted Inventory table Upload/////////////////////////////////////////////////////////////////
 
     const newSheetInsertValues = sheetData.map((row) => row);
-     try {
-
-       const deleteduploadResult = await pool.query(
+    try {
+      const deleteduploadResult = await pool.query(
         `Select upload_id,uploaded_at from uploads where "dealership_id" = $1 AND "dealer_code" = $2 ORDER BY  uploaded_at DESC LIMIT 1 `,
         [dealershipId, orderDealer]
       );
 
       const del_upload_id = deleteduploadResult?.rows[0]?.upload_id;
 
-        const response = await pool.query(
-          `Select * from main_inventory WHERE "upload_id" = $1 AND "dealer_code" = $2`,
-          [del_upload_id, orderDealer]
+      const response = await pool.query(
+        `Select * from main_inventory WHERE "upload_id" = $1 AND "dealer_code" = $2`,
+        [del_upload_id, orderDealer]
+      );
+
+      const oldSheet = response?.rows.map((row) => row.stock_data);
+
+      const oldMap = new Map(oldSheet.map((obj) => [obj["Vin Number"], obj]));
+
+      const newMap = new Map(
+        newSheetInsertValues.map((obj) => [obj["Vin Number"], obj])
+      );
+
+      const added = newSheetInsertValues.filter(
+        (obj) => !oldMap.has(obj["Vin Number"])
+      );
+
+      // Deleted → In oldSheet but not in newSheet
+      const deleted = oldSheet.filter((obj) => !newMap.has(obj["Vin Number"]));
+
+      const insertValuesDeleted = [];
+      const placeholdersDeleted = [];
+
+      deleted.forEach((row, i) => {
+        insertValuesDeleted.push(
+          del_upload_id,
+          dealershipId,
+          orderDealer,
+          JSON.stringify(row)
         );
-
-        const oldSheet = response?.rows.map((row) => row.stock_data);
-
-        const oldMap = new Map(oldSheet.map((obj) => [obj["Vin Number"], obj]));
-
-        const newMap = new Map(
-          newSheetInsertValues.map((obj) => [obj["Vin Number"], obj])
+        placeholdersDeleted.push(
+          `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4}::jsonb)`
         );
-
-        const added = newSheetInsertValues.filter(
-          (obj) => !oldMap.has(obj["Vin Number"])
-        );
-
-        // Deleted → In oldSheet but not in newSheet
-        const deleted = oldSheet.filter(
-          (obj) => !newMap.has(obj["Vin Number"])
-        );
-
-        const insertValuesDeleted = [];
-        const placeholdersDeleted = [];
-
-        deleted.forEach((row, i) => {
-          insertValuesDeleted.push(
-            del_upload_id,
-            dealershipId,
-            orderDealer,
-            JSON.stringify(row)
-          );
-          placeholdersDeleted.push(
-            `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${
-              i * 4 + 4
-            }::jsonb)`
-          );
-        });
-        const insertQueryDeleted = `
+      });
+      const insertQueryDeleted = `
       INSERT INTO deleted_main_inventory (upload_id, dealer_id, dealer_code, stock_data)
       VALUES ${placeholdersDeleted.join(", ")}
     `;
 
-
-        if (deleted && deleted.length > 0) {
-          await pool.query(insertQueryDeleted, insertValuesDeleted);
-        }
-      } catch (error) {
-        console.log(error);
-        return res.json({ error: error.response });
+      if (deleted && deleted.length > 0) {
+        await pool.query(insertQueryDeleted, insertValuesDeleted);
       }
+    } catch (error) {
+      console.log(error);
+      return res.json({ error: error.response });
+    }
     // * //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-   
     // 1. Insert into uploads table
     const uploadResult = await pool.query(
       `INSERT INTO uploads (dealership_id,dealer_code) VALUES ($1,$2) RETURNING upload_id, uploaded_at`,
@@ -274,8 +266,6 @@ async function UploadXL(req, res) {
     `;
 
     await pool.query(insertQuery, insertValues);
-
-    
 
     // Delete temp file
     fs.unlinkSync(filepath);
