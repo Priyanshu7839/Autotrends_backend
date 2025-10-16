@@ -1,7 +1,7 @@
 const headerMap = {
   "Stock Age": ["Stock Age", "Ageing"],
   Model: ["Model", "Model Group"],
-  Variant: ["Variant", "Model Description"],
+  Variant: ["Variant", "Variant Desc"],
   "Exterior Color Name": ["Exterior Color Name", "Color"],
   "Vin Number": ["Vin Number", "VIN"], // also update at the compare parts step
   "Stock Status": ["Stock Status", "Vehicle Status"],
