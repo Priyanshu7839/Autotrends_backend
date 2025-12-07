@@ -7,12 +7,12 @@ const userAuthRoute = require('./routes/userAuth.routes');
 const forSubmisiionRoute = require('./routes/ForSubmisiion.routes');
 const InventoryDetails = require('./routes/InventoryDetails.routes')
 const cors = require('cors')
-
+const pdfRoute = require('./routes/AiProperty.routes')
 
 const app = express();
 const PORT = 8002;
 app.use(cors({
-    origin:['http://localhost:5173','https://autotrends.ai','http://localhost:5174'],
+    origin:['http://localhost:5173','https://autotrends.ai','http://localhost:5174','http://localhost:3000'],
      credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -23,6 +23,7 @@ app.use('/deals',carDetailsRoute)
 app.use('/user',userAuthRoute);
 app.use('/submit',forSubmisiionRoute)
 app.use('/Dashboard',InventoryDetails)
+app.use('/aiproperty',pdfRoute)
 
 
 

@@ -120,6 +120,7 @@ async function UpdateInventory(req, res) {
 
     return res.json({ msg: "Inventory Updated" });
   } catch (error) {
+    console.log(error)
     return res.json({ msg: `${error}` });
   }
 }
