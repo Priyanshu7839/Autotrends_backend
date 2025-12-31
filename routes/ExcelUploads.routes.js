@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {UploadInventory}  = require('../controller/ExcelUploads.controller');
+const {UploadInventory, UploadBBNDInventory}  = require('../controller/ExcelUploads.controller');
 const multer = require('multer')
 const path = require('path')
 
@@ -21,6 +21,7 @@ const upload = multer({ storage,
  });
 
 router.post('/uploadInventory',upload.single("file"), UploadInventory)
+router.post('/uploadBBNDInventory',upload.single("file"), UploadBBNDInventory)
 
 
 module.exports = router

@@ -9,7 +9,8 @@ const pdfRoute = require('./routes/AiProperty.routes')
 const ExcelUploads = require('./routes/ExcelUploads.routes')
 const ExcelDownloadsRoute = require('./routes/ExcelDownloads.routes');
 const InventoryDataRoutes = require('./routes/InventoryData.routes')
-
+const BBNDInventoryRoutes = require('./routes/BBNDInventoryData.routes')
+ 
 const app = express();
 const PORT = 8002;
 app.use(cors({
@@ -28,6 +29,7 @@ app.use('/aiproperty',pdfRoute)
 app.use('/exceluploads',ExcelUploads)
 app.use('/exceldownloads',ExcelDownloadsRoute)
 app.use('/InventoryData',InventoryDataRoutes);
+app.use('/BBNDInventoryData',BBNDInventoryRoutes)
 
 
 
