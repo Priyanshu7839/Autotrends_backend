@@ -152,7 +152,23 @@ async function GetAllStocks (req,res){
     }
 }
 
+
+async function GetAllDeletedStocks (req,res) {
+  const {dealer_id,order_dealer} = req.params;
+
+   try {
+        const result = await pool.query(`Select *  from deleted_dealer_bbnd_inventory where dealer_id = $1  AND ($2::TEXT = 'ALL' OR "Order Dealer" = $2 AND otp_verified = false); `,[dealer_id,order_dealer])
+
+        return res.json({'stock':result?.rows})
+    } catch (error) {
+         console.log(error)
+        return res.json({error:`${error}`})
+    }    
+
+
+}
+
 module.exports = {
     GetTotalCars,
-    GetUniqueModels,GetUniqueVariants,GetAgeBuckets,GetAges,GetAllStocks,GetLastUpdateDate
+    GetUniqueModels,GetUniqueVariants,GetAgeBuckets,GetAges,GetAllStocks,GetLastUpdateDate,GetAllDeletedStocks
 }
