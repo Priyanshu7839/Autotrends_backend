@@ -3,6 +3,7 @@ const fs = require("fs");
 const XLSX = require("xlsx");
 
 async function UploadInventory (req,res) {
+  console.log('hit')
    try {
          if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
@@ -52,9 +53,10 @@ async function UploadInventory (req,res) {
       SELECT
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
         $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
-      WHERE NOT EXISTS (
-        SELECT 1 FROM dealer_inventory WHERE "Vin Number" = $15
-      );
+      ON CONFLICT ("Vin Number")
+DO UPDATE
+SET updated_at = NOW()
+RETURNING "Vin Number", updated_at;
       `,
       [
         data["Order Dealer"],
@@ -117,6 +119,7 @@ else{
         "Color Type","Exterior Color Name","Interior Color Desc",
         "Full Spec Code","Vin Number","Stock Location","Engine No",
         "Stock Status","Cust Name","Basic Price","dealer_id" from moved_rows
+     ON CONFLICT ("Vin Number") DO NOTHING;
   `,
   [dealer_id, sheetVins]
 );
@@ -128,12 +131,9 @@ console.log(result)
 }
 
 }
-       
+    
 
-
-
-
-        return res.json({'msg':'Data uploaded'});
+     return res.json({'msg':'Data uploaded'});
    } catch (error) {
     console.log(error)
     return res.json({error:`${error}`})
@@ -236,6 +236,7 @@ else{
     SELECT "Order Dealer","Stock Age","Model","Variant",
         "Color Type","Vin Number",
         "Stock Status","Cust Name","dealer_id" from moved_rows
+        ON CONFLICT ("Vin Number") DO NOTHING;
   `,
   [dealer_id, sheetVins]
 );
