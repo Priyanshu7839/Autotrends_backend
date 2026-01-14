@@ -3,7 +3,7 @@ const fs = require("fs");
 const XLSX = require("xlsx");
 
 async function UploadInventory (req,res) {
-  console.log('hit')
+
    try {
          if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
@@ -189,9 +189,10 @@ async function UploadBBNDInventory (req,res){
       )
       SELECT
         $1,$2,$3,$4,$5,$6,$7,$8,$9
-      WHERE NOT EXISTS (
-        SELECT 1 FROM dealer_bbnd_inventory WHERE "Vin Number" = $6
-      );
+    ON CONFLICT ("Vin Number")
+DO UPDATE
+SET updated_at = NOW()
+      ;
       `,
       [
         data["Order Dealer"],
