@@ -167,6 +167,29 @@ async function GetAllStocks (req,res){
     }
 }
 
+async function GetStockStatusHeader (req,res){
+  const {dealer_id,order_dealer} = req.params;
+try {
+        const result = await pool.query(`SELECT
+  "Stock Status",
+  COUNT(*) AS count
+FROM dealer_inventory
+WHERE dealer_id = $1
+  AND ($2::TEXT = 'ALL' OR "Order Dealer" = $2)
+GROUP BY "Stock Status"
+ORDER BY count DESC;`,[dealer_id,order_dealer])
+       
+
+        return res.json({'stock_status':result?.rows})
+    } catch (error) {
+         console.log(error)
+        return res.json({error:`${error}`})
+    }
+
+
+
+}
+
 module.exports = {
   CapitalStuck,
   GetTotalCars,
@@ -175,6 +198,7 @@ module.exports = {
   GetAgeBuckets,
   GetLastUpdateDate,
   GetAges,
-  GetAllStocks
+  GetAllStocks,
+  GetStockStatusHeader
 
 };
