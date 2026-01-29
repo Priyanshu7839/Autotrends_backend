@@ -45,8 +45,8 @@ async function UploadInventory(req, res) {
         "KIN Invoice No" TEXT,
         "KIN Invoice Date" TEXT,
         "Sign Off Date" TEXT,
-        "Sign Age" TEXT,
-        "Stock Age" TEXT,
+        "Sign Age" INT,
+        "Stock Age" INT,
         "Model Code" TEXT,
         "Model" TEXT,
         "Variant Code" TEXT,
@@ -181,7 +181,7 @@ async function UploadInventory(req, res) {
 
     await client.query("COMMIT");
 
-    return res.json({ msg: "Data uploaded fast ✅", totalRows: sheetData.length });
+    return res.json({ msg: "Data uploaded", totalRows: sheetData.length });
   } catch (error) {
     await client.query("ROLLBACK");
     console.log(error);
@@ -241,7 +241,7 @@ async function UploadBBNDInventory(req, res) {
     await client.query(`
       CREATE TEMP TABLE temp_bbnd_upload (
         "Order Dealer" TEXT,
-        "Stock Age" TEXT,
+        "Stock Age" INT,
         "Model" TEXT,
         "Variant" TEXT,
         "Color Type" TEXT,
@@ -337,7 +337,7 @@ async function UploadBBNDInventory(req, res) {
     await client.query("COMMIT");
 
     return res.json({
-      msg: "BBND inventory uploaded fast ✅",
+      msg: "Data uploaded",
       totalRows: sheetData.length,
     });
   } catch (error) {
