@@ -1,40 +1,73 @@
 const pool = require('../connection');
 const format = require("pg-format");
 const XLSX = require("xlsx");
+
 const fs = require("fs");
+const ExcelJS = require('exceljs')
 
 async function UploadInventory(req, res) {
   const client = await pool.connect();
   const filepath = req?.file?.path;
-
   try {
+    
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
+    
+    
     const { dealer_id } = req.body;
     if (!dealer_id) return res.status(400).json({ message: "Dealership ID is required" });
+  const workbook = new ExcelJS.Workbook();
+await workbook.xlsx.readFile(filepath);
 
-    const workbook = XLSX.readFile(filepath);
-    const sheetname = workbook.SheetNames[0];
+const worksheet = workbook.getWorksheet(1); // first sheet
 
-    const sheetDataRaw = XLSX.utils.sheet_to_json(workbook.Sheets[sheetname], {
-      defval: null,
-    });
+if (!worksheet || worksheet.rowCount <= 1) {
+  return res.json({ msg: "No Data found in Excel" });
+}
 
-    if (sheetDataRaw.length === 0) {
-      return res.json({ msg: "No Data found in Excel" });
-    }
+const headers = {};
+const sheetData = [];
+const sheetVins = [];
 
-    // Trim keys
-    const sheetData = sheetDataRaw.map((row) => {
-      const newRow = {};
-      for (let key in row) newRow[key.trim()] = row[key];
-      return newRow;
-    });
+// Read header row once
+worksheet.getRow(1).eachCell((cell, colNumber) => {
+  if (cell.value) {
+    headers[colNumber] = String(cell.value).trim();
+  }
+});
 
-    const sheetVins = sheetData.map((r) => r["Vin Number"]).filter(Boolean);
-    if (sheetVins.length === 0) {
-      return res.status(400).json({ message: "Excel contains no VINs. Aborting." });
-    }
+// Read rows (ONE pass)
+worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+  if (rowNumber === 1) return; // skip header
+
+  const obj = {};
+
+  row.eachCell((cell, colNumber) => {
+    const key = headers[colNumber];
+    if (!key) return;
+
+    obj[key] = cell.value ?? null;
+  });
+
+  // Collect VIN early (avoid extra loop)
+  if (obj["Vin Number"]) {
+    sheetVins.push(obj["Vin Number"]);
+  }
+
+  sheetData.push(obj);
+});
+
+// Final validations
+if (sheetData.length === 0) {
+  return res.json({ msg: "No Data found in Excel" });
+}
+
+if (sheetVins.length === 0) {
+  return res.status(400).json({
+    message: "Excel contains no VINs. Aborting.",
+  });
+}
+
+
 
     await client.query("BEGIN");
 
@@ -65,6 +98,8 @@ async function UploadInventory(req, res) {
       ) ON COMMIT DROP;
     `);
 
+
+
     // ✅ 2) Bulk insert into temp table (ONE QUERY)
     const values = sheetData.map((data) => [
       data["Order Dealer"],
@@ -90,6 +125,7 @@ async function UploadInventory(req, res) {
       Number(dealer_id),
     ]);
 
+
     const bulkInsertQuery = format(
       `
       INSERT INTO temp_inventory_upload (
@@ -105,6 +141,8 @@ async function UploadInventory(req, res) {
     );
 
     await client.query(bulkInsertQuery);
+
+
 
     // ✅ 3) One UPSERT into real table
     await client.query(`
@@ -147,6 +185,8 @@ async function UploadInventory(req, res) {
         updated_at = NOW();
     `);
 
+
+
     // ✅ 4) Delete + move missing VINs in ONE go (fast)
     await client.query(
       `
@@ -179,7 +219,10 @@ async function UploadInventory(req, res) {
       [dealer_id]
     );
 
+
+
     await client.query("COMMIT");
+    console.log('ran')
 
     return res.json({ msg: "Data uploaded", totalRows: sheetData.length });
   } catch (error) {
@@ -209,32 +252,57 @@ async function UploadBBNDInventory(req, res) {
       return res.status(400).json({ message: "Dealership ID is required" });
     }
 
-    const workbook = XLSX.readFile(filepath);
-    const sheetname = workbook.SheetNames[0];
+    const workbook = new ExcelJS.Workbook();
+await workbook.xlsx.readFile(filepath);
 
-    const sheetDataRaw = XLSX.utils.sheet_to_json(workbook.Sheets[sheetname], {
-      defval: null,
-    });
+const worksheet = workbook.getWorksheet(1); // first sheet
 
-    if (sheetDataRaw.length === 0) {
-      return res.json({ msg: "No Data found in Excel" });
-    }
+if (!worksheet || worksheet.rowCount <= 1) {
+  return res.json({ msg: "No Data found in Excel" });
+}
 
-    // ✅ Trim column keys
-    const sheetData = sheetDataRaw.map((row) => {
-      const newRow = {};
-      for (let key in row) newRow[key.trim()] = row[key];
-      return newRow;
-    });
+const headers = {};
+const sheetData = [];
+const sheetVins = [];
 
-    const sheetVins = sheetData.map((row) => row["Vin Number"]).filter(Boolean);
+// Read header row once
+worksheet.getRow(1).eachCell((cell, colNumber) => {
+  if (cell.value) {
+    headers[colNumber] = String(cell.value).trim();
+  }
+});
 
-    if (sheetVins.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Excel contains no VINs. Aborting delete sync." });
-    }
+// Read rows (ONE pass)
+worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+  if (rowNumber === 1) return; // skip header
 
+  const obj = {};
+
+  row.eachCell((cell, colNumber) => {
+    const key = headers[colNumber];
+    if (!key) return;
+
+    obj[key] = cell.value ?? null;
+  });
+
+  // Collect VIN early (avoid extra loop)
+  if (obj["Vin Number"]) {
+    sheetVins.push(obj["Vin Number"]);
+  }
+
+  sheetData.push(obj);
+});
+
+// Final validations
+if (sheetData.length === 0) {
+  return res.json({ msg: "No Data found in Excel" });
+}
+
+if (sheetVins.length === 0) {
+  return res.status(400).json({
+    message: "Excel contains no VINs. Aborting.",
+  });
+}
     await client.query("BEGIN");
 
     // ✅ 1) Temp staging table (auto drops)

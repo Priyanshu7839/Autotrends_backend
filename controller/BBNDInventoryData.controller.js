@@ -103,7 +103,7 @@ async function GetLastUpdateDate(req, res) {
   const { dealer_id } = req.params;
 
   try {
-    const result = await pool.query(` SELECT MAX(updated_at AT TIME ZONE 'Asia/Kolkata') AS last_updated
+    const result = await pool.query(` SELECT MAX(updated_at) + INTERVAL '5 hours 30 minutes' AS last_updated
 FROM dealer_bbnd_inventory
 WHERE dealer_id = $1;`,[dealer_id]);
 
