@@ -5,9 +5,28 @@ const XLSX = require("xlsx");
 const fs = require("fs");
 const ExcelJS = require('exceljs')
 
+function normalizeCellValue(cell) {
+  if (!cell || cell.value == null) return null;
+
+  // Formula cell
+  if (typeof cell.value === "object") {
+    // ExcelJS does NOT calculate formulas
+    if (cell.value.formula && cell.value.result == null) {
+      throw new Error(
+        `Uncalculated formula found: ${cell.value.formula}`
+      );
+    }
+    return cell.value.result ?? null;
+  }
+
+  // Normal value (number, string, date, etc.)
+  return cell.value;
+}
+
 async function UploadInventory(req, res) {
   const client = await pool.connect();
   const filepath = req?.file?.path;
+  console.log('hit')
   try {
     
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -27,6 +46,8 @@ if (!worksheet || worksheet.rowCount <= 1) {
 const headers = {};
 const sheetData = [];
 const sheetVins = [];
+  console.log('hit1')
+
 
 // Read header row once
 worksheet.getRow(1).eachCell((cell, colNumber) => {
@@ -44,8 +65,7 @@ worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
   row.eachCell((cell, colNumber) => {
     const key = headers[colNumber];
     if (!key) return;
-
-    obj[key] = cell.value ?? null;
+    obj[key] = normalizeCellValue(cell);
   });
 
   // Collect VIN early (avoid extra loop)
@@ -282,7 +302,7 @@ worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     const key = headers[colNumber];
     if (!key) return;
 
-    obj[key] = cell.value ?? null;
+    obj[key] = normalizeCellValue(cell);
   });
 
   // Collect VIN early (avoid extra loop)
@@ -333,6 +353,7 @@ if (sheetVins.length === 0) {
       Number(dealer_id),
     ]);
 
+  
     const bulkInsertQuery = format(
       `
       INSERT INTO temp_bbnd_upload (
