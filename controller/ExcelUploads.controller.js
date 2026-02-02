@@ -279,6 +279,9 @@ async function UploadInventory(req, res) {
     return res.status(400).json({ msg: "No file uploaded" });
   }
 
+
+  console.log('Hit')
+
   const { dealer_id } = req.body;
   if (!dealer_id) {
     return res.status(400).json({ msg: "Dealership ID is required" });
@@ -315,6 +318,9 @@ async function UploadInventory(req, res) {
         dealer_id INT
       ) ON COMMIT DROP;
     `);
+
+  console.log('Hit1')
+
 
     // 2️⃣ Stream Excel (constant memory)
     const stream = Readable.from(req.file.buffer);
@@ -382,6 +388,7 @@ async function UploadInventory(req, res) {
         }
       }
     }
+  console.log('Hit2')
 
     // Flush remainder
     if (batch.length > 0) {
@@ -465,6 +472,8 @@ async function UploadInventory(req, res) {
     );
 
     await client.query("COMMIT");
+  console.log('Completed')
+
 
     return res.json({
       msg: "Data uploaded",
