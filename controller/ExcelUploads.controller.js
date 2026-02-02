@@ -24,18 +24,21 @@ function normalizeCellValue(cell) {
 }
 
 async function UploadInventory(req, res) {
+  if (!req.file || !req.file.buffer){
+    console.log('exit')
+    return res.status(400).json({ message: "No file uploaded" });}
   const client = await pool.connect();
-  const filepath = req?.file?.path;
+  const buffer = req?.file?.buffer;
   console.log('hit')
   try {
     
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+   
     
     
     const { dealer_id } = req.body;
     if (!dealer_id) return res.status(400).json({ message: "Dealership ID is required" });
   const workbook = new ExcelJS.Workbook();
-await workbook.xlsx.readFile(filepath);
+await workbook.xlsx.load(buffer);
 
 const worksheet = workbook.getWorksheet(1); // first sheet
 
@@ -251,7 +254,7 @@ if (sheetVins.length === 0) {
     return res.status(500).json({ error: String(error) });
   } finally {
     client.release();
-    if (filepath && fs.existsSync(filepath)) fs.unlinkSync(filepath);
+    
   }
 }
 
@@ -259,13 +262,15 @@ if (sheetVins.length === 0) {
 
 
 async function UploadBBNDInventory(req, res) {
+  
+  if (!req.file || !req.file.buffer) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
   const client = await pool.connect();
-  const filepath = req?.file?.path;
+  const buffer = req?.file?.buffer;
 
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
+   
 
     const { dealer_id } = req.body;
     if (!dealer_id) {
@@ -273,7 +278,7 @@ async function UploadBBNDInventory(req, res) {
     }
 
     const workbook = new ExcelJS.Workbook();
-await workbook.xlsx.readFile(filepath);
+await workbook.xlsx.load(buffer);
 
 const worksheet = workbook.getWorksheet(1); // first sheet
 
@@ -435,7 +440,7 @@ if (sheetVins.length === 0) {
     return res.status(500).json({ error: String(error) });
   } finally {
     client.release();
-    if (filepath && fs.existsSync(filepath)) fs.unlinkSync(filepath);
+   
   }
 }
 

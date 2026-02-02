@@ -4,21 +4,12 @@ const {UploadInventory, UploadBBNDInventory}  = require('../controller/ExcelUplo
 const multer = require('multer')
 const path = require('path')
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
+const storage = multer.memoryStorage();
 
-const upload = multer({ storage,
-  limits: {
-    fieldSize: 25 * 1024 * 1024, // allows text fields up to 25MB
-    fileSize: 50 * 1024 * 1024,  // allows file uploads up to 50MB
-  },
- });
+const upload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
 
 router.post('/uploadInventory',upload.single("file"), UploadInventory)
 router.post('/uploadBBNDInventory',upload.single("file"), UploadBBNDInventory)
