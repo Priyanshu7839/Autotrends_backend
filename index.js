@@ -11,15 +11,26 @@ const ExcelDownloadsRoute = require('./routes/ExcelDownloads.routes');
 const InventoryDataRoutes = require('./routes/InventoryData.routes')
 const BBNDInventoryRoutes = require('./routes/BBNDInventoryData.routes')
 const MasterInventoryRoutes = require('./routes/MasterInventoryData.routes')
+const AutotendspdfRoute = require('./routes/Pdf.routes')
  
 const app = express();
 const PORT = 8002;
-app.use(cors({
-    origin:['http://localhost:5173','https://autotrends.ai','http://localhost:5174','http://localhost:3000'],
-     credentials: true,
+
+const corsOptions = {
+  origin: [
+    'https://www.autotrends.ai',
+    'https://autotrends.ai',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+  ],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}))
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
 app.use('/deals',carDetailsRoute)
@@ -32,7 +43,7 @@ app.use('/exceldownloads',ExcelDownloadsRoute)
 app.use('/InventoryData',InventoryDataRoutes);
 app.use('/BBNDInventoryData',BBNDInventoryRoutes)
 app.use('/MasterInventoryData',MasterInventoryRoutes)
-
+app.use('/pdf',AutotendspdfRoute)
 
 
 app.listen(PORT,()=>{

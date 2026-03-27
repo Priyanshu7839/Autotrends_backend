@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const pool = require("../connection");
+const { generateInventoryPDF } = require("../controller/PDF.controller");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -96,4 +97,30 @@ async function VerifyOTP(req, res) {
   }
 }
 
-module.exports = { sendOTP, VerifyOTP };
+
+async function emailInventoryReport(req,res){
+
+  const { dealer_id, dealershipName, dealerEmail } = req.body;
+
+  const pdfBuffer = await generateInventoryPDF(dealershipName, dealer_id);
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_SENDER,
+    to: dealerEmail,
+    subject: `Daily Inventory Report - ${dealershipName}`,
+    text: "Please find today's inventory report attached.",
+    attachments: [
+      {
+        filename: "inventory-report.pdf",
+        content: pdfBuffer
+      }
+    ]
+  });
+
+  res.json({
+    success:true,
+    message:"Email sent successfully"
+  });
+}
+
+module.exports = { sendOTP, VerifyOTP ,emailInventoryReport};

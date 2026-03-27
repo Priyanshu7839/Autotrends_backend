@@ -39,108 +39,7 @@ async function FetchTotalInventoryUnits(req, res) {
     return res.json({ msg: `${error}` });
   }
 }
-async function FastStars(req, res) {
-  const { dealer_id, dealerCodes } = req.body;
-  if (dealerCodes && dealerCodes.length === 0) {
-    return res.json({ msg: "Dealer codes empty" });
-  }
 
-  try {
-    const query = `
-    WITH latest_uploads AS (
-        SELECT 
-            upload_id,
-            uploaded_at,
-            dealer_code,
-            ROW_NUMBER() OVER (PARTITION BY dealer_code ORDER BY uploaded_at DESC) AS rn
-        FROM uploads
-        WHERE dealership_id = $1
-          AND dealer_code = ANY($2::text[])
-    )
-    SELECT 
-        i.*, 
-        l.uploaded_at
-    FROM latest_uploads l
-    JOIN main_inventory i
-      ON i.dealer_code = l.dealer_code
-     AND i.upload_id   = l.upload_id
-    WHERE l.rn = 1;
-  `;
-
-    const params = [dealer_id, dealerCodes];
-
-    const { rows } = await pool.query(query, params);
-
-    const FastStars = rows?.filter(
-      (model) => model?.stock_data?.["Stock Age"] <= 15
-    );
-    const totalCapitalStuck = rows?.reduce((acc, items) => {
-      const basicPrice = items?.stock_data["Basic Price"];
-      return acc + basicPrice;
-    }, 0);
-
-    return res.json({
-      msg: "Data Fetched",
-      FastStarsCount: FastStars?.length,
-      data: FastStars,
-      totalCapitalStuck: totalCapitalStuck,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.json({ msg: `${error}` });
-  }
-}
-async function SlowSnails(req, res) {
-  const { dealer_id, dealerCodes } = req.body;
-  if (dealerCodes && dealerCodes.length === 0) {
-    return res.json({ msg: "Dealer codes empty" });
-  }
-
-  try {
-    const query = `
-    WITH latest_uploads AS (
-        SELECT 
-            upload_id,
-            uploaded_at,
-            dealer_code,
-            ROW_NUMBER() OVER (PARTITION BY dealer_code ORDER BY uploaded_at DESC) AS rn
-        FROM uploads
-        WHERE dealership_id = $1
-          AND dealer_code = ANY($2::text[])
-    )
-    SELECT 
-        i.*, 
-        l.uploaded_at
-    FROM latest_uploads l
-    JOIN main_inventory i
-      ON i.dealer_code = l.dealer_code
-     AND i.upload_id   = l.upload_id
-    WHERE l.rn = 1;
-  `;
-
-    const params = [dealer_id, dealerCodes];
-
-    const { rows } = await pool.query(query, params);
-
-    const SlowSnails = rows?.filter(
-      (model) => model?.stock_data?.["Stock Age"] >= 75
-    );
-    const totalCapitalStuck = rows?.reduce((acc, items) => {
-      const basicPrice = items?.stock_data["Basic Price"];
-      return acc + basicPrice;
-    }, 0);
-
-    return res.json({
-      msg: "Data Fetched",
-      SlowSnailsCount: SlowSnails?.length,
-      data: SlowSnails,
-      totalCapitalStuck: totalCapitalStuck,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.json({ msg: `${error}` });
-  }
-}
 async function GetDealerCodes(req, res) {
   const { dealership_id } = req.body;
 
@@ -689,8 +588,6 @@ async function MasterInventoryListOrderDealer(req, res) {
 
 module.exports = {
   FetchTotalInventoryUnits,
-  FastStars,
-  SlowSnails,
   GetDealerCodes,
   InventoryList,
   BBNDInventoryList,

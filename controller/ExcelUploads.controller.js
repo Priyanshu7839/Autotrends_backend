@@ -529,7 +529,7 @@ async function insertBatch(client, batch) {
 
 // const worksheet = workbook.getWorksheet(1); // first sheet
 
-// if (!worksheet || worksheet.rowCount <= 1) {
+// if (!worksheet) {
 //   return res.json({ msg: "No Data found in Excel" });
 // }
 
@@ -566,15 +566,16 @@ async function insertBatch(client, batch) {
 // });
 
 // // Final validations
-// if (sheetData.length === 0) {
-//   return res.json({ msg: "No Data found in Excel" });
-// }
+// // if (sheetData.length === 0) {
+// //   console.log('here')
+// //   return res.json({ msg: "No Data found in Excel" });
+// // }
 
-// if (sheetVins.length === 0) {
-//   return res.status(400).json({
-//     msg: "Excel contains no VINs. Aborting.",
-//   });
-// }
+// // if (sheetVins.length === 0) {
+// //   return res.status(400).json({
+// //     msg: "Excel contains no VINs. Aborting.",
+// //   });
+// // }
 //     await client.query("BEGIN");
 
 //     // ✅ 1) Temp staging table (auto drops)
@@ -606,7 +607,7 @@ async function insertBatch(client, batch) {
 //     ]);
 
   
-//     const bulkInsertQuery = format(
+//     if(sheetData.length > 0){const bulkInsertQuery = format(
 //       `
 //       INSERT INTO temp_bbnd_upload (
 //         "Order Dealer","Stock Age","Model","Variant",
@@ -618,6 +619,7 @@ async function insertBatch(client, batch) {
 //     );
 
 //     await client.query(bulkInsertQuery);
+//   }
 
 //     // ✅ 3) One UPSERT into real table
 //     await client.query(`
@@ -786,8 +788,7 @@ async function UploadBBNDInventory(req, res) {
     }
 
     if (totalRows === 0) {
-      throw new Error("Excel contains no valid rows");
-    }
+      
 
     // 3️⃣ UPSERT into main table
     await client.query(`
@@ -812,6 +813,8 @@ async function UploadBBNDInventory(req, res) {
         dealer_id      = EXCLUDED.dealer_id,
         updated_at     = NOW();
     `);
+    }
+
 
     // 4️⃣ Delete missing VINs + archive
     await client.query(
