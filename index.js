@@ -12,6 +12,7 @@ const InventoryDataRoutes = require('./routes/InventoryData.routes')
 const BBNDInventoryRoutes = require('./routes/BBNDInventoryData.routes')
 const MasterInventoryRoutes = require('./routes/MasterInventoryData.routes')
 const AutotendspdfRoute = require('./routes/Pdf.routes')
+const PoolStockRoute = require('./routes/Poolstock.routes')
  
 const app = express();
 const PORT = 8002;
@@ -44,6 +45,7 @@ app.use('/InventoryData',InventoryDataRoutes);
 app.use('/BBNDInventoryData',BBNDInventoryRoutes)
 app.use('/MasterInventoryData',MasterInventoryRoutes)
 app.use('/pdf',AutotendspdfRoute)
+app.use('/poolstock',PoolStockRoute)
 
 
 app.listen(PORT,()=>{

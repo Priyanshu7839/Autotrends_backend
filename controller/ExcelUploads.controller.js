@@ -878,4 +878,325 @@ async function insertBBNDBatch(client, batch) {
   await client.query(query);
 }
 
-module.exports = {UploadInventory,UploadBBNDInventory}
+
+function getCellValue(cell) {
+  if (!cell) return null;
+
+  const value = cell.value;
+
+  if (value === null || value === undefined) return null;
+
+  // Handle different ExcelJS types
+  if (typeof value === "object") {
+    if (value.richText) {
+      return value.richText.map(rt => rt.text).join("");
+    }
+    if (value.text) return value.text;
+    if (value.result) return value.result; // formulas
+    if (value.hyperlink) return value.text;
+    if (value.sharedString) return value.sharedString;
+  }
+
+  return value;
+}
+
+
+// 🔥 Proper value extractor (fixes your sharedString issue)
+function getCellValue(cell) {
+  if (!cell) return null;
+
+  const value = cell.value;
+
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === "object") {
+    if (value.richText) {
+      return value.richText.map(rt => rt.text).join("");
+    }
+    if (value.text) return value.text;
+    if (value.result) return value.result;
+    if (value.hyperlink) return value.text;
+  }
+
+  return value;
+}
+
+// 🚀 MAIN CONTROLLER
+async function uploadVNAExcel(req, res) {
+  if (!req.file || !req.file.buffer) {
+    return res.status(400).json({ msg: "No file uploaded" });
+  }
+
+  const { dealer_id } = req.body;
+
+  if (!dealer_id) {
+    return res.status(400).json({ msg: "dealer_id is required" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+
+    const sheet = workbook.worksheets[0];
+    if (!sheet) throw new Error("No worksheet found");
+
+    // 🧠 Extract headers
+    let headers = [];
+    sheet.getRow(1).eachCell((cell, colNumber) => {
+      headers[colNumber] = getCellValue(cell);
+    });
+
+    headers = headers.filter(Boolean);
+
+    if (!headers.length) {
+      throw new Error("Excel has no headers");
+    }
+
+    // 🔥 Add dealer_id column explicitly
+    const finalColumns = [...headers, "dealer_id"];
+
+      await client.query(`delete from vna where dealer_id = $1`,[dealer_id])
+
+
+    for (let i = 2; i <= sheet.rowCount; i++) {
+      const row = sheet.getRow(i);
+
+      let values = [];
+
+      for (let j = 1; j <= headers.length; j++) {
+        const cell = row.getCell(j);
+        values.push(getCellValue(cell));
+      }
+
+      // skip empty rows
+      if (values.every(v => v === null || v === "")) continue;
+
+      // 👇 inject dealer_id
+      values.push(dealer_id);
+
+      const columnsSQL = finalColumns.map(c => `"${c}"`).join(",");
+      const placeholders = finalColumns.map((_, idx) => `$${idx + 1}`).join(",");
+
+
+
+      const query = `
+        INSERT INTO VNA (${columnsSQL})
+        VALUES (${placeholders})
+      `;
+
+      await client.query(query, values);
+    }
+
+    await client.query("COMMIT");
+
+    return res.json({ msg: "Upload successful" });
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    return res.status(500).json({ msg: "Upload failed", error: err.message });
+  } finally {
+    client.release();
+  }
+}
+
+
+async function UploadPoolStock(req, res) {
+  if (!req.file || !req.file.buffer) {
+    return res.status(400).json({ msg: "No file uploaded" });
+  }
+
+  const { asm_id } = req.body;
+  if (!asm_id) {
+    return res.status(400).json({ msg: "ASM ID is required" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 1️⃣ Temp table
+    await client.query(`
+      CREATE TEMP TABLE temp_poolstock (
+        "Model Code" TEXT,
+        "Model" TEXT,
+        "fsc" TEXT,
+        "Variant Description" TEXT,
+        "Ext Color Code" TEXT,
+        "Ext Color" TEXT,
+        "Int Color Code" TEXT,
+        "Int Color" TEXT,
+        "Region" INT,
+        "RSY" INT,
+        "All India" INT,
+        "Total" INT,
+        "Available Trim Quota [RO]" INT,
+        "Available Trim Quota [Dealer]" INT,
+        asm_id INT
+      ) ON COMMIT DROP;
+    `);
+
+    // 🧹 2️⃣ Delete old data for this asm_id
+    await client.query(
+      `DELETE FROM poolstock_data WHERE asm_id = $1`,
+      [asm_id]
+    );
+
+    // 3️⃣ Stream Excel
+    const stream = Readable.from(req.file.buffer);
+    const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(stream, {
+      worksheets: "emit",
+      sharedStrings: "cache",
+      styles: "ignore",
+      hyperlinks: "ignore",
+    });
+
+    let headerRow1 = {};
+    let headerRow2 = {};
+    let headers = {};
+
+    let batch = [];
+    let totalRows = 0;
+
+    for await (const worksheet of workbookReader) {
+      for await (const row of worksheet) {
+
+        // Row 1
+        if (row.number === 1) {
+          row.eachCell((cell, col) => {
+            headerRow1[col] = cell.value ? String(cell.value).trim() : "";
+          });
+          continue;
+        }
+
+        // Row 2
+        if (row.number === 2) {
+          row.eachCell((cell, col) => {
+            headerRow2[col] = cell.value ? String(cell.value).trim() : "";
+          });
+for (let i = 1; i <= 15; i++) {
+  const h2 = headerRow2[i];
+  const h1 = headerRow1[i];
+
+  headers[i] = (h2 && h2 !== "") ? h2 : (h1 || "");
+}
+          continue;
+        }
+       
+
+
+        if (row.number <= 2) continue;
+
+        const obj = {};
+        row.eachCell((cell, col) => {
+          const key = headers[col];
+          if (!key) return;
+          obj[key] = normalizeCellValue(cell);
+        });
+
+
+        // skip empty rows
+        if (!obj["Model Code"]) continue;
+
+        batch.push([
+          obj["Model Code"],
+          obj["Model"],
+          obj["fsc"],
+          obj["Variant Description"],
+          obj["Ext Color Code"],
+          obj["Ext Color"],
+          obj["Int Color Code"],
+          obj["Int Color"],
+          Number(obj["Region"]) || 0,
+          Number(obj["RSY"]) || 0,
+          Number(obj["All India"]) || 0,
+          Number(obj["Total"]) || 0,
+          Number(obj["Available Trim Quota [RO]"]) || 0,
+          Number(obj["Available Trim Quota [Dealer]"]) || 0,
+          Number(asm_id),
+        ]);
+
+        totalRows++;
+
+        if (batch.length === BATCH_SIZE) {
+          await insertPoolStockBatch(client, batch);
+          batch.length = 0;
+        }
+      }
+    }
+
+         
+
+
+    if (batch.length > 0) {
+      await insertPoolStockBatch(client, batch);
+    }
+
+    // 4️⃣ Insert into main table
+    await client.query(`
+      INSERT INTO poolstock_data (
+        "Model Code","Model","fsc","Variant Description",
+        "Ext Color Code","Ext Color",
+        "Int Color Code","Int Color",
+        "Region","RSY","All India","Total",
+        "Available Trim Quota [RO]",
+        "Available Trim Quota [Dealer]",
+        asm_id
+      )
+      SELECT
+        "Model Code","Model","fsc","Variant Description",
+        "Ext Color Code","Ext Color",
+        "Int Color Code","Int Color",
+        "Region","RSY","All India","Total",
+        "Available Trim Quota [RO]",
+        "Available Trim Quota [Dealer]",
+        asm_id
+      FROM temp_poolstock;
+    `);
+
+    await client.query("COMMIT");
+
+    return res.json({
+      msg: "POOL STK uploaded",
+      totalRows,
+    });
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    return res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+}
+
+async function insertPoolStockBatch(client, batch) {
+  const query = format(
+    `
+    INSERT INTO temp_poolstock (
+      "Model Code","Model","fsc","Variant Description",
+      "Ext Color Code","Ext Color",
+      "Int Color Code","Int Color",
+      "Region","RSY","All India","Total",
+      "Available Trim Quota [RO]",
+      "Available Trim Quota [Dealer]",
+      asm_id
+    )
+    VALUES %L
+    `,
+    batch
+  );
+
+  await client.query(query);
+}
+
+
+
+
+
+module.exports = {UploadInventory,UploadBBNDInventory,UploadPoolStock,uploadVNAExcel}
