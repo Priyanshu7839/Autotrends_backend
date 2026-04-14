@@ -927,11 +927,6 @@ async function uploadVNAExcel(req, res) {
     return res.status(400).json({ msg: "No file uploaded" });
   }
 
-  const { dealer_id } = req.body;
-
-  if (!dealer_id) {
-    return res.status(400).json({ msg: "dealer_id is required" });
-  }
 
   const client = await pool.connect();
 
@@ -957,9 +952,37 @@ async function uploadVNAExcel(req, res) {
     }
 
     // 🔥 Add dealer_id column explicitly
-    const finalColumns = [...headers, "dealer_id"];
+    const finalColumns = [...headers];
 
-      await client.query(`delete from vna where dealer_id = $1`,[dealer_id])
+
+
+    const codeIndex = headers.findIndex(h => h === "Code");
+
+if (codeIndex === -1) {
+  throw new Error("Excel must contain 'Code' column");
+}
+
+let code = null;
+
+for (let i = 2; i <= sheet.rowCount; i++) {
+  const row = sheet.getRow(i);
+  const value = getCellValue(row.getCell(codeIndex + 1));
+
+  if (value) {
+    code = value;
+    break;
+  }
+}
+
+if (!code) {
+  throw new Error("No valid code found in Excel");
+}
+
+      await client.query(
+  `DELETE FROM vna 
+   WHERE  "Code" = $1`,
+  [code]
+);
 
 
     for (let i = 2; i <= sheet.rowCount; i++) {
@@ -975,8 +998,7 @@ async function uploadVNAExcel(req, res) {
       // skip empty rows
       if (values.every(v => v === null || v === "")) continue;
 
-      // 👇 inject dealer_id
-      values.push(dealer_id);
+    
 
       const columnsSQL = finalColumns.map(c => `"${c}"`).join(",");
       const placeholders = finalColumns.map((_, idx) => `$${idx + 1}`).join(",");

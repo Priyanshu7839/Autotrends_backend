@@ -3,13 +3,14 @@ const pool = require("../connection");
 
 async function getVnaComputedData(req, res) {
 
-  const {dealer_id,asm_id} = req.body;
+  const {asm_id,selectedDealerCode} = req.body;
   
-  if(!dealer_id){
-      return res.status(400).json({ msg: "No dealer_id" });
-  }
+  
   if(!asm_id){
       return res.status(400).json({ msg: "No asm_id" });
+  }
+  if(!selectedDealerCode){
+    return res.status(400).json({msg:"No Dealer code"})
   }
 
   try {
@@ -21,7 +22,7 @@ async function getVnaComputedData(req, res) {
                   TRIM(LOWER(COALESCE("Variant Description", ''))) || 
                   TRIM(LOWER(COALESCE("Ext Color", '')))
               ) AS d
-          FROM poolstock_data where asm_id = 1
+          FROM poolstock_data where asm_id = $1
       ),
 
       vna_calc AS (
@@ -31,7 +32,7 @@ async function getVnaComputedData(req, res) {
                   TRIM(LOWER(COALESCE(vna."Trim", ''))) || 
                   TRIM(LOWER(COALESCE(vna."Colour", '')))
               ) AS e
-          FROM vna where dealer_id = 1
+          FROM vna where ($2::TEXT = 'ALL' OR "Code" = $2)
       )
 
       SELECT 
@@ -52,7 +53,7 @@ async function getVnaComputedData(req, res) {
           ) AS i
 
       FROM vna_calc;
-    `);
+    `,[asm_id,selectedDealerCode]);
 
     res.json(result.rows);
   } catch (err) {
@@ -91,4 +92,34 @@ return res.json({'date':result?.rows?.[0]?.last_updated})
   }
 }
 
-module.exports = {getVnaComputedData,GetLastUpdateDateVNA,GetLastUpdateDatepoolstock}
+
+
+async function getUniqueCodes(req, res) {
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      SELECT DISTINCT "Code"
+      FROM vna
+      WHERE "Code" IS NOT NULL
+      ORDER BY "Code"
+    `);
+
+    const codes = result.rows.map(row => row.Code);
+
+    return res.json({
+      data: codes
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch unique codes",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = {getVnaComputedData,GetLastUpdateDateVNA,GetLastUpdateDatepoolstock,getUniqueCodes}
