@@ -3,7 +3,7 @@ const pool = require("../connection");
 
 async function getVnaComputedData(req, res) {
 
-  const {asm_id,selectedDealerCode} = req.body;
+  const {asm_id,dealer_id,selectedDealerCode} = req.body;
   
   
   if(!asm_id){
@@ -32,7 +32,7 @@ async function getVnaComputedData(req, res) {
                   TRIM(LOWER(COALESCE(vna."Trim", ''))) || 
                   TRIM(LOWER(COALESCE(vna."Colour", '')))
               ) AS e
-          FROM vna where ($2::TEXT = 'ALL' OR "Code" = $2)
+          FROM vna where dealer_id = $2 and ($3::TEXT = 'ALL' OR "Code" = $3)
       )
 
       SELECT 
@@ -53,7 +53,7 @@ async function getVnaComputedData(req, res) {
           ) AS i
 
       FROM vna_calc;
-    `,[asm_id,selectedDealerCode]);
+    `,[asm_id,dealer_id,selectedDealerCode]);
 
     res.json(result.rows);
   } catch (err) {
@@ -122,4 +122,115 @@ async function getUniqueCodes(req, res) {
   }
 }
 
-module.exports = {getVnaComputedData,GetLastUpdateDateVNA,GetLastUpdateDatepoolstock,getUniqueCodes}
+
+async function GetPoolStock(req,res) {
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select * from poolstock_data
+    `);
+
+    
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch poolstock data",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+async function GetOriginalVna(req,res) {
+const {dealer_id,selectedDealerCode} = req.body
+
+  
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select * from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2)
+    `,[dealer_id,selectedDealerCode]);
+
+    
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch vna",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+async function getModels(req,res) {
+  const {dealer_id,selectedDealerCode} = req.body
+
+  
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select DISTINCT TRIM(SPLIT_PART("Trim", ' ', 1)) AS model,COUNT(*) AS count FROM vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) GROUP BY model ORDER BY count DESC 
+    `,[dealer_id,selectedDealerCode]);
+
+    
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch Models",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+async function getVariants(req,res) {
+  const {dealer_id,selectedDealerCode} = req.body
+
+  
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select DISTINCT "Trim", COUNT(*) AS count from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) GROUP BY "Trim" ORDER BY count DESC
+    `,[dealer_id,selectedDealerCode]);
+
+    
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch Variants",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+
+module.exports = {getVnaComputedData,GetLastUpdateDateVNA,GetLastUpdateDatepoolstock,getUniqueCodes,GetPoolStock,GetOriginalVna,getModels,getVariants}
