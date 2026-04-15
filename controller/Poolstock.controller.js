@@ -4,6 +4,12 @@ const pool = require("../connection");
 async function getVnaComputedData(req, res) {
 
   const {asm_id,dealer_id,selectedDealerCode} = req.body;
+
+  if(!dealer_id){
+
+      return res.status(400).json({ msg: "No dealer_id" });
+  
+  }
   
   
   if(!asm_id){
@@ -65,7 +71,11 @@ async function getVnaComputedData(req, res) {
 
 async function GetLastUpdateDateVNA(req, res) {
   const { dealer_id } = req.params;
+ if(!dealer_id){
 
+      return res.status(400).json({ msg: "No dealer_id" });
+  
+  }
   try {
     const result = await pool.query(` SELECT MAX(last_updated)  AS last_updated
 FROM vna
@@ -79,7 +89,11 @@ return res.json({'date':result?.rows?.[0]?.last_updated})
 }
 async function GetLastUpdateDatepoolstock(req, res) {
   const { dealer_id } = req.params;
+ if(!dealer_id){
 
+      return res.status(400).json({ msg: "No dealer_id" });
+  
+  }
   try {
     const result = await pool.query(` SELECT MAX(last_updated)  AS last_updated
 FROM poolstock_data
@@ -151,6 +165,12 @@ async function GetPoolStock(req,res) {
 async function GetOriginalVna(req,res) {
 const {dealer_id,selectedDealerCode} = req.body
 
+ if(!dealer_id){
+
+      return res.status(400).json({ msg: "No dealer_id" });
+  
+  }
+
   
   const client = await pool.connect();
 
@@ -178,7 +198,11 @@ const {dealer_id,selectedDealerCode} = req.body
 
 async function getModels(req,res) {
   const {dealer_id,selectedDealerCode} = req.body
+ if(!dealer_id){
 
+      return res.status(400).json({ msg: "No dealer_id" });
+  
+  }
   
   const client = await pool.connect();
 
@@ -206,7 +230,11 @@ async function getModels(req,res) {
 
 async function getVariants(req,res) {
   const {dealer_id,selectedDealerCode} = req.body
+ if(!dealer_id){
 
+      return res.status(400).json({ msg: "No dealer_id" });
+  
+  }
   
   const client = await pool.connect();
 
@@ -232,5 +260,151 @@ async function getVariants(req,res) {
   }
 }
 
+async function getColour(req,res) {
+  const {dealer_id,selectedDealerCode} = req.body
+ if(!dealer_id){
 
-module.exports = {getVnaComputedData,GetLastUpdateDateVNA,GetLastUpdateDatepoolstock,getUniqueCodes,GetPoolStock,GetOriginalVna,getModels,getVariants}
+      return res.status(400).json({ msg: "No dealer_id" });
+  
+  }
+  
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select DISTINCT "Colour", COUNT(*) AS count from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) GROUP BY "Colour" ORDER BY count DESC
+    `,[dealer_id,selectedDealerCode]);
+
+    
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch Colour",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+
+async function getPoolstockModels(req,res) {
+  
+
+  
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select DISTINCT "Model" as model, COUNT(*) AS count from poolstock_data  GROUP BY model ORDER BY count DESC
+    `);
+
+    
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch poolstock Models",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+
+async function getpoolstockVariants(req,res) {
+  
+
+  
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select DISTINCT "Variant Description" as "Trim", COUNT(*) AS count from poolstock_data GROUP BY "Trim" ORDER BY count DESC
+    `);
+
+    
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch Variants",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+async function getpoolstockColour(req,res) {
+ 
+
+  
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select DISTINCT "Ext Color" as "Colour", COUNT(*) AS count from poolstock_data  GROUP BY "Colour" ORDER BY count DESC
+    `);
+
+    
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch Colour",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+
+
+async function getDealerships(req,res) {
+
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`
+      Select pk_id,dealership_name from onboarded_dealers
+    `);
+
+    return res.json({
+      data: result.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      msg: "Failed to fetch Variants",
+      error: err.message
+    });
+  } finally {
+    client.release();
+  }
+}
+
+
+
+
+module.exports = {getVnaComputedData,GetLastUpdateDateVNA,GetLastUpdateDatepoolstock,getUniqueCodes,GetPoolStock,GetOriginalVna,getModels,getVariants,getDealerships,getColour,getPoolstockModels,getpoolstockVariants,getpoolstockColour}
