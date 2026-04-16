@@ -140,10 +140,12 @@ async function getUniqueCodes(req, res) {
 async function GetPoolStock(req,res) {
   const client = await pool.connect();
 
+  const {Model,Variant,Color} = req.params
+
   try {
     const result = await client.query(`
-      Select * from poolstock_data
-    `);
+      Select * from poolstock_data where ($1::TEXT = 'ALL' OR "Model" = $1) and ($2::TEXT = 'ALL' OR "Variant Description" = $2) and ($3::TEXT = 'ALL' OR "Ext Color" = $3)
+    `,[Model,Variant,Color]);
 
     
 
@@ -165,6 +167,9 @@ async function GetPoolStock(req,res) {
 async function GetOriginalVna(req,res) {
 const {dealer_id,selectedDealerCode} = req.body
 
+  const {Model,Variant,Color} = req.params
+
+
  if(!dealer_id){
 
       return res.status(400).json({ msg: "No dealer_id" });
@@ -176,8 +181,8 @@ const {dealer_id,selectedDealerCode} = req.body
 
   try {
     const result = await client.query(`
-      Select * from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2)
-    `,[dealer_id,selectedDealerCode]);
+      Select * from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) and ($3 = 'ALL' OR "Trim" ILIKE '%' || $3 || '%') and ($4::TEXT = 'ALL' OR "Trim" = $4) and ($5::TEXT = 'ALL' OR "Colour" = $5)
+    `,[dealer_id,selectedDealerCode,Model,Variant,Color]);
 
     
 
@@ -198,6 +203,8 @@ const {dealer_id,selectedDealerCode} = req.body
 
 async function getModels(req,res) {
   const {dealer_id,selectedDealerCode} = req.body
+  const {Model,Variant,Color} = req.params
+
  if(!dealer_id){
 
       return res.status(400).json({ msg: "No dealer_id" });
@@ -208,8 +215,8 @@ async function getModels(req,res) {
 
   try {
     const result = await client.query(`
-      Select DISTINCT TRIM(SPLIT_PART("Trim", ' ', 1)) AS model,COUNT(*) AS count FROM vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) GROUP BY model ORDER BY count DESC 
-    `,[dealer_id,selectedDealerCode]);
+      Select DISTINCT TRIM(SPLIT_PART("Trim", ' ', 1)) AS model,COUNT(*) AS count FROM vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) and ($3 = 'ALL' OR "Trim" ILIKE '%' || $3 || '%') and ($4::TEXT = 'ALL' OR "Trim" = $4) and ($5::TEXT = 'ALL' OR "Colour" = $5) GROUP BY model ORDER BY count DESC 
+    `,[dealer_id,selectedDealerCode,Model,Variant,Color]);
 
     
 
@@ -230,6 +237,8 @@ async function getModels(req,res) {
 
 async function getVariants(req,res) {
   const {dealer_id,selectedDealerCode} = req.body
+  const {Model,Variant,Color} = req.params
+
  if(!dealer_id){
 
       return res.status(400).json({ msg: "No dealer_id" });
@@ -240,8 +249,8 @@ async function getVariants(req,res) {
 
   try {
     const result = await client.query(`
-      Select DISTINCT "Trim", COUNT(*) AS count from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) GROUP BY "Trim" ORDER BY count DESC
-    `,[dealer_id,selectedDealerCode]);
+      Select DISTINCT "Trim", COUNT(*) AS count from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) and ($3 = 'ALL' OR "Trim" ILIKE '%' || $3 || '%') and ($4::TEXT = 'ALL' OR "Trim" = $4) and ($5::TEXT = 'ALL' OR "Colour" = $5) GROUP BY "Trim" ORDER BY count DESC
+    `,[dealer_id,selectedDealerCode,Model,Variant,Color]);
 
     
 
@@ -262,6 +271,8 @@ async function getVariants(req,res) {
 
 async function getColour(req,res) {
   const {dealer_id,selectedDealerCode} = req.body
+  const {Model,Variant,Color} = req.params
+
  if(!dealer_id){
 
       return res.status(400).json({ msg: "No dealer_id" });
@@ -272,8 +283,8 @@ async function getColour(req,res) {
 
   try {
     const result = await client.query(`
-      Select DISTINCT "Colour", COUNT(*) AS count from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) GROUP BY "Colour" ORDER BY count DESC
-    `,[dealer_id,selectedDealerCode]);
+      Select DISTINCT "Colour", COUNT(*) AS count from vna where dealer_id = $1 and ($2::TEXT = 'ALL' OR "Code" = $2) and ($3 = 'ALL' OR "Trim" ILIKE '%' || $3 || '%') and ($4::TEXT = 'ALL' OR "Trim" = $4) and ($5::TEXT = 'ALL' OR "Colour" = $5) GROUP BY "Colour" ORDER BY count DESC
+    `,[dealer_id,selectedDealerCode,Model,Variant,Color]);
 
     
 
@@ -295,14 +306,16 @@ async function getColour(req,res) {
 
 async function getPoolstockModels(req,res) {
   
-
+const {Model,Variant,Color} = req.params
   
   const client = await pool.connect();
 
+
+
   try {
     const result = await client.query(`
-      Select DISTINCT "Model" as model, COUNT(*) AS count from poolstock_data  GROUP BY model ORDER BY count DESC
-    `);
+      Select DISTINCT "Model" as model, COUNT(*) AS count from poolstock_data where ($1::TEXT = 'ALL' OR "Model" = $1) and ($2::TEXT = 'ALL' OR "Variant Description" = $2) and ($3::TEXT = 'ALL' OR "Ext Color" = $3) GROUP BY model ORDER BY count DESC
+    `,[Model,Variant,Color]);
 
     
 
@@ -323,15 +336,15 @@ async function getPoolstockModels(req,res) {
 
 
 async function getpoolstockVariants(req,res) {
-  
+  const {Model,Variant,Color} = req.params
 
   
   const client = await pool.connect();
 
   try {
     const result = await client.query(`
-      Select DISTINCT "Variant Description" as "Trim", COUNT(*) AS count from poolstock_data GROUP BY "Trim" ORDER BY count DESC
-    `);
+      Select DISTINCT "Variant Description" as "Trim", COUNT(*) AS count from poolstock_data where ($1::TEXT = 'ALL' OR "Model" = $1) and ($2::TEXT = 'ALL' OR "Variant Description" = $2) and ($3::TEXT = 'ALL' OR "Ext Color" = $3) GROUP BY "Trim" ORDER BY count DESC
+    `,[Model,Variant,Color]);
 
     
 
@@ -351,15 +364,15 @@ async function getpoolstockVariants(req,res) {
 }
 
 async function getpoolstockColour(req,res) {
- 
+ const {Model,Variant,Color} = req.params
 
   
   const client = await pool.connect();
 
   try {
     const result = await client.query(`
-      Select DISTINCT "Ext Color" as "Colour", COUNT(*) AS count from poolstock_data  GROUP BY "Colour" ORDER BY count DESC
-    `);
+      Select DISTINCT "Ext Color" as "Colour", COUNT(*) AS count from poolstock_data where ($1::TEXT = 'ALL' OR "Model" = $1) and ($2::TEXT = 'ALL' OR "Variant Description" = $2) and ($3::TEXT = 'ALL' OR "Ext Color" = $3) GROUP BY "Colour" ORDER BY count DESC
+    `,[Model,Variant,Color]);
 
     
 
