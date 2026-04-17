@@ -921,12 +921,18 @@ function getCellValue(cell) {
   return value;
 }
 
-// 🚀 MAIN CONTROLLER
+
 async function uploadVNAExcel(req, res) {
   if (!req.file || !req.file.buffer) {
     return res.status(400).json({ msg: "No file uploaded" });
   }
 
+  const {dealer_id} = req.body
+
+  if (!dealer_id) {
+    return res.status(400).json({ msg: "dealer_id is required" });
+  }
+  
 
   const client = await pool.connect();
 
@@ -952,7 +958,7 @@ async function uploadVNAExcel(req, res) {
     }
 
     // 🔥 Add dealer_id column explicitly
-    const finalColumns = [...headers];
+    const finalColumns = [...headers,'dealer_id'];
 
 
 
@@ -980,8 +986,8 @@ if (!code) {
 
       await client.query(
   `DELETE FROM vna 
-   WHERE  "Code" = $1`,
-  [code]
+   WHERE dealer_id = $1 and "Code" = $2`,
+  [dealer_id,code]
 );
 
 
@@ -995,10 +1001,12 @@ if (!code) {
         values.push(getCellValue(cell));
       }
 
+    
+
       // skip empty rows
       if (values.every(v => v === null || v === "")) continue;
 
-    
+    values.push(dealer_id);
 
       const columnsSQL = finalColumns.map(c => `"${c}"`).join(",");
       const placeholders = finalColumns.map((_, idx) => `$${idx + 1}`).join(",");
