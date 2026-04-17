@@ -5,7 +5,7 @@ const {DownloadInventory, DownloadBBNDInventory, DownloadMatchedExcel, DownloadO
 
 router.get('/DownloadInventory/:dealer_id',DownloadInventory)
 router.get('/DownloadBBNDInventory/:dealer_id',DownloadBBNDInventory)
-router.get('/DownloadMatchedExcel/:dealer_id/:selectedDealerCode',DownloadMatchedExcel)
+router.get('/DownloadMatchedExcel/:asm_id/:dealer_id/:selectedDealerCode',DownloadMatchedExcel)
 router.get('/DownloadOriginalVna/:dealer_id',DownloadOriginalVna)
 router.get('/DownloadPoolstock',DownloadPoolstock)
 

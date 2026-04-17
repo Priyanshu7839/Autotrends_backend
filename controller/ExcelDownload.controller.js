@@ -64,7 +64,7 @@ return res.send(buffer);
 
 async function DownloadMatchedExcel(req, res) {
 
-    const {dealer_id,selectedDealerCode} = req.params;
+    const {asm_id,dealer_id,selectedDealerCode} = req.params;
 
 
   const result = await pool.query(` WITH poolstk AS (
@@ -104,7 +104,7 @@ async function DownloadMatchedExcel(req, res) {
               LIMIT 1
           ) AS i
 
-      FROM vna_calc`,[dealer_id,selectedDealerCode]);
+      FROM vna_calc`,[asm_id,dealer_id,selectedDealerCode]);
 
   const worksheet = XLSX.utils.json_to_sheet(result.rows);
   const workbook = XLSX.utils.book_new();
