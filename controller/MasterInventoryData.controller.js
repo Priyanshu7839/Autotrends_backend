@@ -2,7 +2,7 @@ const pool = require("../connection");
 
 
 async function GetTotalCars(req, res) {
-  const { dealer_id, order_dealer,stock_status,Model,Variants } = req.params;
+  const { dealer_id, order_dealer,stock_status,Model,Variants,Year } = req.params;
 
   try {
     const response = await pool.query(
@@ -16,6 +16,7 @@ async function GetTotalCars(req, res) {
           AND ($3::TEXT = 'ALL' OR "Stock Status" = $3)
       AND ($4::TEXT = 'ALL' OR "Model" = $4)
       AND ($5::TEXT = 'ALL' OR "Variant" = $5)
+      AND ($6::TEXT = 'ALL' OR "Sign Off Date" LIKE '%' || $6 || '%')
 
 
 
@@ -31,7 +32,7 @@ async function GetTotalCars(req, res) {
 
       ) combined;
       `,
-      [dealer_id, order_dealer,stock_status,Model,Variants]
+      [dealer_id, order_dealer,stock_status,Model,Variants,Year]
     );
 
     return res.json({ total_stock: response.rows[0].stock_count });
@@ -43,7 +44,7 @@ async function GetTotalCars(req, res) {
 
 
 async function GetUniqueModels(req, res) {
-  const { dealer_id, order_dealer,stock_status} = req.params;
+  const { dealer_id, order_dealer,stock_status,Year} = req.params;
 
   try {
     const response = await pool.query(
@@ -57,6 +58,8 @@ async function GetUniqueModels(req, res) {
         WHERE dealer_id = $1
           AND ($2::TEXT = 'ALL' OR "Order Dealer" = $2)
           AND ($3::TEXT = 'ALL' OR "Stock Status" = $3)
+      AND ($4::TEXT = 'ALL' OR "Sign Off Date" LIKE '%' || $4 || '%')
+
           
 
         UNION ALL
@@ -70,7 +73,7 @@ async function GetUniqueModels(req, res) {
       GROUP BY "Model"
       ORDER BY count DESC;
       `,
-      [dealer_id, order_dealer,stock_status]
+      [dealer_id, order_dealer,stock_status,Year]
     );
 
     return res.json({ uniqueModels: response.rows });
@@ -81,7 +84,7 @@ async function GetUniqueModels(req, res) {
 }
 
 async function GetUniqueVariants(req, res) {
-  const { dealer_id, order_dealer,stock_status,Model } = req.params;
+  const { dealer_id, order_dealer,stock_status,Model,Year } = req.params;
 
   try {
     const response = await pool.query(
@@ -98,6 +101,8 @@ async function GetUniqueVariants(req, res) {
           AND ($2::TEXT = 'ALL' OR "Order Dealer" = $2)
           AND ($3::TEXT = 'ALL' OR "Stock Status" = $3)
           AND ($4::TEXT = 'ALL' OR "Model" = $4)
+      AND ($5::TEXT = 'ALL' OR "Sign Off Date" LIKE '%' || $5 || '%')
+
 
         UNION ALL
 
@@ -111,7 +116,7 @@ async function GetUniqueVariants(req, res) {
       GROUP BY "Variant"
       ORDER BY count DESC;
       `,
-      [dealer_id, order_dealer, stock_status,Model]
+      [dealer_id, order_dealer, stock_status,Model,Year]
     );
 
     return res.json({ uniqueVariants: response.rows });
@@ -121,7 +126,7 @@ async function GetUniqueVariants(req, res) {
   }
 }
 async function GetAgeBuckets(req, res) {
-  const { dealer_id, order_dealer,stock_status,Model,Variants } = req.params;
+  const { dealer_id, order_dealer,stock_status,Model,Variants,Year } = req.params;
 
   try {
     const response = await pool.query(
@@ -142,6 +147,8 @@ async function GetAgeBuckets(req, res) {
           AND ($3::TEXT = 'ALL' OR "Stock Status" = $3)
           AND ($4::TEXT = 'ALL' OR "Model" = $4)
       AND ($5::TEXT = 'ALL' OR "Variant" = $5)
+      AND ($6::TEXT = 'ALL' OR "Sign Off Date" LIKE '%' || $6 || '%')
+
 
         UNION ALL
 
@@ -161,7 +168,7 @@ async function GetAgeBuckets(req, res) {
         CASE WHEN "Model" IS NULL THEN 1 ELSE 0 END,
         "Model";
       `,
-      [dealer_id, order_dealer,stock_status,Model,Variants]
+      [dealer_id, order_dealer,stock_status,Model,Variants,Year]
     );
 
     return res.json({ ageBuckets: response.rows });
@@ -173,7 +180,7 @@ async function GetAgeBuckets(req, res) {
 
 
 async function GetAges(req, res) {
-  const { dealer_id, order_dealer, stock_status,Model,Variants } = req.params;
+  const { dealer_id, order_dealer, stock_status,Model,Variants,Year } = req.params;
 
   try {
     const result = await pool.query(
@@ -193,6 +200,8 @@ async function GetAges(req, res) {
           AND ($3::TEXT = 'ALL' OR "Stock Status" = $3)
           AND ($4::TEXT = 'ALL' OR "Model" = $4)
       AND ($5::TEXT = 'ALL' OR "Variant" = $5)
+      AND ($6::TEXT = 'ALL' OR "Sign Off Date" LIKE '%' || $6 || '%')
+
 
         UNION ALL
 
@@ -205,7 +214,7 @@ async function GetAges(req, res) {
       AND ($5::TEXT = 'ALL' OR "Variant" = $5)
       ) combined;
       `,
-      [dealer_id, order_dealer, stock_status,Model,Variants]
+      [dealer_id, order_dealer, stock_status,Model,Variants,Year]
     );
 
     return res.json({ ages: result.rows[0] }); // ✅ just return the object, not array
@@ -216,7 +225,7 @@ async function GetAges(req, res) {
 }
 
 async function GetStockStatusHeader(req, res) {
-  const { dealer_id, order_dealer,Model,Variants } = req.params;
+  const { dealer_id, order_dealer,Model,Variants,Year } = req.params;
 
   try {
     const result = await pool.query(
@@ -231,6 +240,8 @@ async function GetStockStatusHeader(req, res) {
           AND ($2::TEXT = 'ALL' OR "Order Dealer" = $2)
           AND ($3::TEXT = 'ALL' OR "Model" = $3)
       AND ($4::TEXT = 'ALL' OR "Variant" = $4)
+      AND ($5::TEXT = 'ALL' OR "Sign Off Date" LIKE '%' || $5 || '%')
+
 
         UNION ALL
 
@@ -242,7 +253,7 @@ async function GetStockStatusHeader(req, res) {
       GROUP BY "Stock Status"
       ORDER BY count DESC;
       `,
-      [dealer_id, order_dealer,Model,Variants]
+      [dealer_id, order_dealer,Model,Variants,Year]
     );
 
     return res.json({ stock_status: result.rows });

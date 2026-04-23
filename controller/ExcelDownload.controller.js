@@ -122,7 +122,7 @@ async function DownloadMatchedExcel(req, res) {
 );
 res.setHeader(
   "Content-Disposition",
-  "attachment; filename=dealer_inventory.xlsx"
+  "attachment; filename=matched_excel.xlsx"
 );
 
 return res.send(buffer);
@@ -153,7 +153,7 @@ async function DownloadOriginalVna(req, res) {
 );
 res.setHeader(
   "Content-Disposition",
-  "attachment; filename=dealer_inventory.xlsx"
+  "attachment; filename=vna.xlsx"
 );
 
 return res.send(buffer);
@@ -183,7 +183,7 @@ async function DownloadPoolstock(req, res) {
 );
 res.setHeader(
   "Content-Disposition",
-  "attachment; filename=dealer_inventory.xlsx"
+  "attachment; filename=poolstock.xlsx"
 );
 
 return res.send(buffer);
