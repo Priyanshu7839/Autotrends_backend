@@ -21,8 +21,9 @@ async function loginUser (req,res) {
 
 async function SignupDealer (req,res) {
   const {email,password} = req.body;
+console.log('hello')
 
-  try {
+              try {
                 const result = await pool.query(`SELECT * FROM dealership_users WHERE email=$1`,[email]);
 
                 if(result.rows.length === 0){
@@ -47,9 +48,13 @@ async function SignupDealer (req,res) {
                
                   const dealership_id = assignedDealerships.rows?.[0]["dealership_id"]
                   const token = setUser(result.rows[0])
+                 
                   res.cookie('token',token)
                   const dealership  = await pool.query(`SELECT * FROM onboarded_dealers where pk_id = $1`,[dealership_id])
-                  return res.status(200).json({'msg':'Logged IN',"user":dealership.rows[0],"role":dealership_user_role,"name":user_name,"user_id":dealership_user_id})
+                  console.log(dealership?.rows[0])
+                  return res.status(200).json({'msg':'Logged IN',"user":dealership.rows[0],"role":dealership_user_role,"name":user_name,"user_id":dealership_user_id
+                  
+                  })
                 
                 
 

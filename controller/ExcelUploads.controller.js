@@ -697,9 +697,13 @@ async function insertBatch(client, batch) {
 
 
 async function UploadBBNDInventory(req, res) {
+
+  console.log("hit")
   if (!req.file || !req.file.buffer) {
     return res.status(400).json({ msg: "No file uploaded" });
   }
+
+  console.log(req.file)
 
   const { dealer_id } = req.body;
   if (!dealer_id) {
@@ -777,18 +781,25 @@ async function UploadBBNDInventory(req, res) {
         // 🔥 flush batch
         if (batch.length === BATCH_SIZE) {
           await insertBBNDBatch(client, batch);
+          console.log(batch.length)
           batch.length = 0;
+
+          
         }
       }
     }
 
+   
+
     // Flush remainder
     if (batch.length > 0) {
+     
       await insertBBNDBatch(client, batch);
+       
     }
 
-    if (totalRows === 0) {
-      
+    if (totalRows !== 0) {
+    
 
     // 3️⃣ UPSERT into main table
     await client.query(`
@@ -848,6 +859,8 @@ async function UploadBBNDInventory(req, res) {
     );
 
     await client.query("COMMIT");
+
+  
 
     return res.json({
       msg: "Data uploaded",
