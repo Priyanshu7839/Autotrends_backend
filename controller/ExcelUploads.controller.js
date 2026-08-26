@@ -1240,6 +1240,390 @@ async function insertPoolStockBatch(client, batch) {
 
 
 
+const MONTHS = {
+  jan:0, feb:1, mar:2, apr:3, may:4, jun:5,
+  jul:6, aug:7, sep:8, oct:9, nov:10, dec:11
+};
+
+function normalizeDate(value) {
+  if (!value) return null;
+
+  // Already a Date object
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+
+  // Raw number = Excel serial date
+  if (typeof value === 'number') {
+    return excelSerialToDate(value);
+  }
+
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // Corrupted Excel serial leaking into a date-shaped string, e.g. 45916-01-01
+  let m = str.match(/^(\d{4,6})-(\d{1,2})-(\d{1,2})$/);
+  if (m && +m[1] > 9999) {
+    return excelSerialToDate(+m[1]);
+  }
+
+  // Plain Excel serial as string, e.g. "45916"
+  if (/^\d{4,6}$/.test(str)) {
+    return excelSerialToDate(+str);
+  }
+
+  // ISO format YYYY-MM-DD (valid, non-corrupted)
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) {
+    const year = +m[1], month = +m[2] - 1, day = +m[3];
+    const d = new Date(year, month, day);
+    return isValidDate(d, day, month, year) ? d : null;
+  }
+
+  // DD/Mon/YY or DD/Mon/YYYY, e.g. 02/Aug/27
+  m = str.match(/^(\d{1,2})\/([A-Za-z]{3,})\/(\d{2,4})$/);
+  if (m) {
+    const day = +m[1];
+    const month = MONTHS[m[2].toLowerCase().slice(0, 3)];
+    let year = +m[3];
+    if (month === undefined) return null;
+    if (year < 100) year += 2000;
+    const d = new Date(year, month, day);
+    return isValidDate(d, day, month, year) ? d : null;
+  }
+
+  // DD/MM/YY or DD/MM/YYYY, e.g. 02/08/27 — assumes DD/MM convention
+  m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (m) {
+    const day = +m[1];
+    const month = +m[2] - 1;
+    let year = +m[3];
+    if (year < 100) year += 2000;
+    const d = new Date(year, month, day);
+    return isValidDate(d, day, month, year) ? d : null;
+  }
+
+  // Fallback: let JS try (handles RFC/ISO-with-time/etc.)
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function excelSerialToDate(serial) {
+  const epoch = Date.UTC(1899, 11, 30); // Excel epoch, includes 1900 leap-bug offset
+  const d = new Date(epoch + serial * 86400000);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function isValidDate(d, day, month, year) {
+  return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+}
 
 
-module.exports = {UploadInventory,UploadBBNDInventory,UploadPoolStock,uploadVNAExcel}
+function normalizeInteger(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? Math.trunc(number) : null;
+}
+
+function normalizeNumeric(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(
+    String(value).replace(/,/g, "").replace(/[₹$]/g, "")
+  );
+
+  return Number.isFinite(number) ? number : null;
+}
+
+async function UploadDealerDemoData(req, res) {
+  console.log("hit");
+
+  if (!req.file || !req.file.buffer) {
+    return res.status(400).json({ msg: "No file uploaded" });
+  }
+
+  console.log(req.file);
+
+  const { dealer_id } = req.body;
+
+  if (!dealer_id) {
+    return res.status(400).json({ msg: "Dealership ID is required" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 1️⃣ Temp table
+    await client.query(`
+      CREATE TEMP TABLE temp_dealer_demo_data (
+        "MODEL" TEXT,
+        "FULE TYPE" TEXT,
+        "TRIM" TEXT,
+        "Color" TEXT,
+        "VIN NO." TEXT,
+        "ENGINE NO." TEXT,
+        "Registration No." TEXT,
+        "Registration Name" TEXT,
+        "Registration Date" DATE,
+        "MFG" DATE,
+        "1st Party INSURANCE UPTO" DATE,
+        "3rd Party INSURANCE UPTO" DATE,
+        "USER" TEXT,
+        "AGING" INT,
+        "KM" INT,
+        "IDV Velue" NUMERIC(15, 2),
+        "Availability" TEXT,
+        "REMARK 1ST PARTY Insurance" TEXT,
+        dealer_id INT
+      ) ON COMMIT DROP;
+    `);
+
+    // 2️⃣ Stream Excel from buffer
+    const stream = Readable.from(req.file.buffer);
+
+    const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(stream, {
+      worksheets: "emit",
+      sharedStrings: "cache",
+      styles: "ignore",
+      hyperlinks: "ignore",
+    });
+
+    let headers = {};
+    let batch = [];
+    let totalRows = 0;
+
+    for await (const worksheet of workbookReader) {
+      for await (const row of worksheet) {
+
+        // Header row
+        if (row.number === 1) {
+          row.eachCell((cell, colNumber) => {
+            if (cell.value !== null && cell.value !== undefined) {
+              headers[colNumber] = String(cell.value).trim();
+            }
+          });
+
+          continue;
+        }
+
+        const obj = {};
+
+        row.eachCell((cell, colNumber) => {
+          const key = headers[colNumber];
+
+          if (!key) return;
+
+          obj[key] = normalizeCellValue(cell);
+        });
+
+        // VIN is the identifier
+        if (!obj["VIN NO."]) {
+          continue;
+        }
+
+        batch.push([
+          obj["MODEL"],
+          obj["FULE TYPE"],
+          obj["TRIM"],
+          obj["Color"],
+          obj["VIN NO."],
+          obj["ENGINE NO."],
+          obj["Registration No."],
+          obj["Registration Name"],
+          normalizeDate(obj["Registration Date"]),
+          normalizeDate(obj["MFG"]),
+          normalizeDate(obj["1st Party INSURANCE UPTO"]),
+          normalizeDate(obj["3rd Party INSURANCE UPTO"]),
+          obj["USER"],
+          normalizeInteger(obj["AGING"]),
+          normalizeInteger(obj["KM"]),
+          normalizeNumeric(obj["IDV Velue"]),
+          obj["Availability"],
+          obj["REMARK 1ST PARTY Insurance"],
+          Number(dealer_id),
+        ]);
+
+        totalRows++;
+
+        // Flush batch
+        if (batch.length === BATCH_SIZE) {
+          await insertDealerDemoDataBatch(client, batch);
+
+          console.log(batch.length);
+
+          batch.length = 0;
+        }
+      }
+    }
+
+    // Flush remainder
+    if (batch.length > 0) {
+      await insertDealerDemoDataBatch(client, batch);
+    }
+
+    // 3️⃣ UPSERT into main table
+    if (totalRows !== 0) {
+      await client.query(`
+        INSERT INTO dealer_demo_data (
+          "MODEL",
+          "FULE TYPE",
+          "TRIM",
+          "Color",
+          "VIN NO.",
+          "ENGINE NO.",
+          "Registration No.",
+          "Registration Name",
+          "Registration Date",
+          "MFG",
+          "1st Party INSURANCE UPTO",
+          "3rd Party INSURANCE UPTO",
+          "USER",
+          "AGING",
+          "KM",
+          "IDV Velue",
+          "Availability",
+          "REMARK 1ST PARTY Insurance",
+          dealer_id
+        )
+        SELECT
+          "MODEL",
+          "FULE TYPE",
+          "TRIM",
+          "Color",
+          "VIN NO.",
+          "ENGINE NO.",
+          "Registration No.",
+          "Registration Name",
+          "Registration Date",
+          "MFG",
+          "1st Party INSURANCE UPTO",
+          "3rd Party INSURANCE UPTO",
+          "USER",
+          "AGING",
+          "KM",
+          "IDV Velue",
+          "Availability",
+          "REMARK 1ST PARTY Insurance",
+          dealer_id
+        FROM temp_dealer_demo_data
+
+        ON CONFLICT (dealer_id,"VIN NO.") DO UPDATE SET
+          "MODEL" = EXCLUDED."MODEL",
+          "FULE TYPE" = EXCLUDED."FULE TYPE",
+          "TRIM" = EXCLUDED."TRIM",
+          "Color" = EXCLUDED."Color",
+          "ENGINE NO." = EXCLUDED."ENGINE NO.",
+          "Registration No." = EXCLUDED."Registration No.",
+          "Registration Name" = EXCLUDED."Registration Name",
+          "Registration Date" = EXCLUDED."Registration Date",
+          "MFG" = EXCLUDED."MFG",
+          "1st Party INSURANCE UPTO" =
+            EXCLUDED."1st Party INSURANCE UPTO",
+          "3rd Party INSURANCE UPTO" =
+            EXCLUDED."3rd Party INSURANCE UPTO",
+          "USER" = EXCLUDED."USER",
+          "AGING" = EXCLUDED."AGING",
+          "KM" = EXCLUDED."KM",
+          "IDV Velue" = EXCLUDED."IDV Velue",
+          "Availability" = EXCLUDED."Availability",
+          "REMARK 1ST PARTY Insurance" =
+            EXCLUDED."REMARK 1ST PARTY Insurance",
+          dealer_id = EXCLUDED.dealer_id,
+          updated_at = NOW();
+      `);
+    }
+
+    // 4️⃣ Delete missing VINs
+    await client.query(
+      `
+      DELETE FROM dealer_demo_data d
+      WHERE d.dealer_id = $1
+        AND NOT EXISTS (
+          SELECT 1
+          FROM temp_dealer_demo_data t
+          WHERE t."VIN NO." = d."VIN NO."
+            AND t.dealer_id = d.dealer_id
+        );
+      `,
+      [dealer_id]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
+      msg: "Dealer demo data uploaded",
+      totalRows,
+    });
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+
+    console.error(err);
+
+    return res.status(500).json({
+      error: err.message,
+    });
+
+  } finally {
+    client.release();
+  }
+}
+
+async function insertDealerDemoDataBatch(client, batch) {
+  const values = [];
+  const placeholders = [];
+
+  let paramIndex = 1;
+
+  for (const row of batch) {
+    const rowPlaceholders = [];
+
+    for (const value of row) {
+      rowPlaceholders.push(`$${paramIndex++}`);
+      values.push(value);
+    }
+
+    placeholders.push(`(${rowPlaceholders.join(", ")})`);
+  }
+
+  await client.query(
+    `
+    INSERT INTO temp_dealer_demo_data (
+      "MODEL",
+      "FULE TYPE",
+      "TRIM",
+      "Color",
+      "VIN NO.",
+      "ENGINE NO.",
+      "Registration No.",
+      "Registration Name",
+      "Registration Date",
+      "MFG",
+      "1st Party INSURANCE UPTO",
+      "3rd Party INSURANCE UPTO",
+      "USER",
+      "AGING",
+      "KM",
+      "IDV Velue",
+      "Availability",
+      "REMARK 1ST PARTY Insurance",
+      dealer_id
+    )
+    VALUES ${placeholders.join(", ")}
+    `,
+    values
+  );
+}
+
+
+
+
+module.exports = {UploadInventory,UploadBBNDInventory,UploadPoolStock,uploadVNAExcel,UploadDealerDemoData}
