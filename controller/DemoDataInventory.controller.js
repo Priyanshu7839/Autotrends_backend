@@ -19,7 +19,7 @@ return res.json({'date':result?.rows?.[0]?.last_updated})
 
 
 async function GetAllStocks (req,res){
-    const {dealer_id,Model,Variants} = req.params;
+    const {dealer_id,Model,Variants,availability} = req.params;
 
     
 
@@ -27,8 +27,11 @@ async function GetAllStocks (req,res){
         const result = await pool.query(`Select *  from dealer_demo_data where dealer_id = $1  
       AND ($2::TEXT = 'ALL' OR "MODEL" = $2)
       AND ($3::TEXT = 'ALL' OR "TRIM" = $3)
+      AND ($4::TEXT = 'ALL' OR "Availability" = $4)
+
+      order by "AGING" desc
           
-          `,[dealer_id,Model,Variants])
+          `,[dealer_id,Model,Variants,availability])
 
         return res.json({'stock':result?.rows})
     } catch (error) {
@@ -39,7 +42,7 @@ async function GetAllStocks (req,res){
 
 
 async function GetTotalCars(req, res) {
-  const { dealer_id,Model,Variants } = req.params;
+  const { dealer_id,Model,Variants,availability } = req.params;
   
 
   try {
@@ -47,9 +50,10 @@ async function GetTotalCars(req, res) {
       `SELECT COUNT(*) as stock_count from dealer_demo_data where dealer_id = $1  
       AND ($2::TEXT = 'ALL' OR "MODEL" = $2)
       AND ($3::TEXT = 'ALL' OR "TRIM" = $3)
+      AND ($4::TEXT = 'ALL' OR "Availability" = $4)
       
       `,
-      [dealer_id,Model,Variants]
+      [dealer_id,Model,Variants,availability]
     );
 
     return res.json({ total_stock: response.rows?.[0]?.stock_count });
@@ -60,7 +64,7 @@ async function GetTotalCars(req, res) {
 }
 
 async function GetUniqueModels(req, res) {
-  const { dealer_id} = req.params;
+  const { dealer_id,availability} = req.params;
   try {
     const response = await pool.query(
       `
@@ -69,12 +73,14 @@ async function GetUniqueModels(req, res) {
       COUNT(*) AS count
     FROM dealer_demo_data
     WHERE dealer_id = $1
+      AND ($2::TEXT = 'ALL' OR "Availability" = $2)
+
 
       
     GROUP BY "MODEL"
     ORDER BY count DESC;
     `,
-      [dealer_id]
+      [dealer_id,availability]
     );
 
     return res.json({ uniqueModels: response?.rows });
@@ -84,7 +90,7 @@ async function GetUniqueModels(req, res) {
   }
 }
 async function GetUniqueVariants(req, res) {
-  const { dealer_id,Model } = req.params;
+  const { dealer_id,Model ,availability} = req.params;
  
   try {
   
@@ -96,10 +102,12 @@ async function GetUniqueVariants(req, res) {
     FROM dealer_demo_data
     WHERE dealer_id = $1
       AND ($2::TEXT = 'ALL' OR "MODEL" = $2)
+      AND ($3::TEXT = 'ALL' OR "Availability" = $3)
+
     GROUP BY "TRIM"
     ORDER BY count DESC;
     `,
-      [dealer_id,Model]
+      [dealer_id,Model,availability]
     );
 
     return res.json({ uniqueVariants: response?.rows });
@@ -110,7 +118,7 @@ async function GetUniqueVariants(req, res) {
 }
 
 async function GetAgeBuckets(req, res) {
-  const { dealer_id, Model, Variants } = req.params;
+  const { dealer_id, Model, Variants ,availability} = req.params;
 
   try {
     const response = await pool.query(
@@ -147,6 +155,8 @@ async function GetAgeBuckets(req, res) {
         WHERE dealer_id = $1
           AND ($2::TEXT = 'ALL' OR "MODEL" = $2)
           AND ($3::TEXT = 'ALL' OR "TRIM" = $3)
+      AND ($4::TEXT = 'ALL' OR "Availability" = $4)
+
 
         GROUP BY GROUPING SETS (
           ("MODEL"),
@@ -157,7 +167,7 @@ async function GetAgeBuckets(req, res) {
           GROUPING("MODEL"),
           "MODEL";
       `,
-      [dealer_id, Model, Variants]
+      [dealer_id, Model, Variants,availability]
     );
 
     return res.json({
@@ -173,7 +183,7 @@ async function GetAgeBuckets(req, res) {
   }
 }
 async function GetAges(req, res) {
-  const { dealer_id, Model, Variants } = req.params;
+  const { dealer_id, Model, Variants,availability } = req.params;
 
   try {
     const result = await pool.query(
@@ -207,9 +217,11 @@ async function GetAges(req, res) {
 
         WHERE dealer_id = $1
           AND ($2::TEXT = 'ALL' OR "MODEL" = $2)
-          AND ($3::TEXT = 'ALL' OR "TRIM" = $3);
+          AND ($3::TEXT = 'ALL' OR "TRIM" = $3)
+      AND ($4::TEXT = 'ALL' OR "Availability" = $4)
+
       `,
-      [dealer_id, Model, Variants]
+      [dealer_id, Model, Variants,availability]
     );
 
     return res.json({
@@ -226,7 +238,32 @@ async function GetAges(req, res) {
 }
 
 
+async function GetAvailability (req,res){
+  const {dealer_id,Model,Variants} = req.params;
+try {
+        const result = await pool.query(`SELECT
+  "Availability",
+  COUNT(*) AS count
+FROM dealer_demo_data
+WHERE dealer_id = $1
+      AND ($2::TEXT = 'ALL' OR "MODEL" = $2)
+      AND ($3::TEXT = 'ALL' OR "TRIM" = $3)
+GROUP BY "Availability"
+ORDER BY count DESC;`,[dealer_id,Model,Variants])
+       
+
+        return res.json({'availability':result?.rows})
+    } catch (error) {
+         console.log(error)
+        return res.json({error:`${error}`})
+    }
+
+
+
+}
+
+
 
 module.exports ={
-    GetLastUpdateDate,GetAllStocks,GetTotalCars,GetUniqueModels,GetUniqueVariants,GetAgeBuckets,GetAges
+    GetLastUpdateDate,GetAllStocks,GetTotalCars,GetUniqueModels,GetUniqueVariants,GetAgeBuckets,GetAges,GetAvailability
 }
