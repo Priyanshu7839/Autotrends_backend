@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {UploadInventory, UploadBBNDInventory, UploadPoolStock, uploadVNAExcel,getVnaComputedData, UploadDealerDemoData}  = require('../controller/ExcelUploads.controller');
+const {UploadInventory, UploadBBNDInventory, UploadPoolStock, uploadVNAExcel,getVnaComputedData, UploadDealerDemoData, importManyChatContact}  = require('../controller/ExcelUploads.controller');
 const multer = require('multer')
 const path = require('path')
 
@@ -16,7 +16,10 @@ router.post('/uploadBBNDInventory',upload.single("file"), UploadBBNDInventory)
 router.post('/uploadPoolStock',upload.single("file"), UploadPoolStock)
 router.post('/uploadVNA',upload.single("file"), uploadVNAExcel)
 router.post('/uploadDemoData',upload.single("file"), UploadDealerDemoData)
-
+router.post(
+  "/manychat/import",
+  importManyChatContact
+);
 
 
 module.exports = router

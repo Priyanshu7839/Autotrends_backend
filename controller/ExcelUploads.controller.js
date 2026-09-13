@@ -1625,5 +1625,44 @@ async function insertDealerDemoDataBatch(client, batch) {
 
 
 
+// controllers/manychat.controller.js
 
-module.exports = {UploadInventory,UploadBBNDInventory,UploadPoolStock,uploadVNAExcel,UploadDealerDemoData}
+export const importManyChatContact = async (req, res) => {
+  try {
+    const data = req.body;
+
+    if (!data || Object.keys(data).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Empty request body",
+      });
+    }
+
+    const result = await pool.query(
+      `
+      INSERT INTO manychat_contacts (data)
+      VALUES ($1)
+      RETURNING id, created_at
+      `,
+      [data]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "ManyChat contact imported",
+      id: result.rows[0].id,
+      created_at: result.rows[0].created_at,
+    });
+
+  } catch (error) {
+    console.error("ManyChat import error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to import ManyChat contact",
+    });
+  }
+};
+
+
+module.exports = {UploadInventory,UploadBBNDInventory,UploadPoolStock,uploadVNAExcel,UploadDealerDemoData,importManyChatContact}
