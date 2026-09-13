@@ -1627,7 +1627,7 @@ async function insertDealerDemoDataBatch(client, batch) {
 
 // controllers/manychat.controller.js
 
-export const importManyChatContact = async (req, res) => {
+ async function importManyChatContact  (req, res) {
   try {
     const data = req.body;
 
